@@ -1,0 +1,10 @@
+{
+	"name": "org.oplauncher.applet_service",
+	"description": "OpenJDK Plugin Launcher",
+	"path": "<HOME>/.oplauncher/oplauncher.exe",
+	"type": "stdio",
+	"allowed_origins": [
+		"chrome-extension://<extension-id>/"
+	]
+}
+
