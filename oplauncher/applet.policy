@@ -1,0 +1,22 @@
+// applet.policy
+grant {
+	// Allow reading system properties (e.g., java.version, os.name)
+	permission java.util.PropertyPermission "*", "read";
+
+	// Deny all file access by default
+	permission java.io.FilePermission "<<ALL FILES>>", "deny";
+
+	// Allow network connections to localhost (optional, if needed by the applet)
+	permission java.net.SocketPermission "localhost:1024-", "connect,resolve";
+
+	// Allow the applet to print to the console
+	permission java.lang.RuntimePermission "queuePrintJob";
+
+	// Allow the applet to use reflection (optional, if required)
+	permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+
+	// Add additional permissions if your applet requires them
+	// Example: Allow creating temporary files
+	// permission java.io.FilePermission "${java.io.tmpdir}/*", "read,write,delete";
+};
+
