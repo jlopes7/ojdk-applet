@@ -1,0 +1,13 @@
+#ifndef _UTILS_H
+#define _UTILS_H
+
+#define BUFFER_SIZE	4096
+#define	PTR(X)		(*X)
+
+#define RC_ERR_GENERAL_ERROR			0
+#define RC_ERR_CHROME_MESSAGE_TO_LARGE		7001
+#define RC_ERR_CHROME_FAILED_MESSAGE		7002
+#define RC_ERR_JSON_FAIL_READ_MSG		7003
+#define RC_ERR_JSON_MISS_REQFIELD		7004
+
+#endif
