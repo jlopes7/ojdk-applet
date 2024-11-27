@@ -1,0 +1,18 @@
+{
+	"manifest_version": 3,
+	"name": "OJDK Applet Runner",
+	"version": "1.0",
+	"permissions": ["nativeMessaging", "scripting"],
+	"host_permissions": ["<all_urls>"],
+	"content_scripts": [{
+		"matches": ["<all_urls>"],
+		"js": ["appletint.js"]
+	}],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"action": {
+		"default_title": "OJDK Applet Runner"
+	}
+}
+
