@@ -4,6 +4,11 @@ project(oplauncher)
 # Set the C standard
 set(CMAKE_C_STANDARD 11)
 
+# If no build type is provided, lets go DEBUG IT!
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
 # Detect platform
 if(WIN32)
     message(STATUS "Building on Windows")
@@ -26,6 +31,14 @@ include_directories(${CMAKE_SOURCE_DIR}/deps)
 find_package(JNI REQUIRED)
 include_directories(${JNI_INCLUDE_DIRS})
 
+# Check if the build type is Debug
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Configuring Debug build: Adding debug symbols (-g)")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+endif()
+
+
 # Add source files
 set(SOURCES
         main.c
@@ -44,6 +57,11 @@ set(HEADERS
 
 # Create the executable
 add_executable(oplauncher ${SOURCES} ${HEADERS})
+
+# Copy the applet.policy file to the build folder
+set(POLICY_FILE applet.policy)
+set(POLICY_DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${POLICY_FILE} DESTINATION ${POLICY_DESTINATION})
 
 # Link libraries (JNI and cJSON)
 target_link_libraries(oplauncher ${JNI_LIBRARIES} cjson)
