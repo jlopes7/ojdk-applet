@@ -1,72 +1,12 @@
 #include "oplauncher.h"
 
-extern char *_applet_policy_filepath_;
-
-/**
- * Reads the message from Chrome
- */
-int chrome_read_message(char *buffer) {
-	unsigned int message_length;
-	if ( !fread(&message_length, 4, 1, stdin) ) {
-		return 0; // End of input
-	}
-
-	if ( message_length > BUFFER_SIZE - 1 ) {
-		fprintf(stderr, "Message too large. Not supported\n");
-		exit( RC_ERR_CHROME_MESSAGE_TO_LARGE );
-	}
-	if ( !fread(buffer, message_length, 1, stdin) ) {
-		fprintf(stderr, "Failed to read message\n");
-		exit( RC_ERR_CHROME_FAILED_MESSAGE );
-	}
-
-	buffer[message_length] = '\0';
-	return 1;
-}
-
-/**
- * Sends a message to Chrome
- */
-void chrome_send_message(const char *message) {
-	unsigned int message_length = strnlen(message, BUFFER_SIZE);
-	fwrite(&message_length, 4, 1, stdout);
-	fwrite(message, message_length, 1, stdout);
-	fflush(stdout);
-}
+extern char *applet_policy_filepath;
 
 // Function to launch the JVM (cross-platform)
 void launch_jvm(const char *class_name, const char *jar_path, const char *params) {
     char command[BUFFER_SIZE];
 
-    #ifdef _WIN32
-        snprintf(command, BUFFER_SIZE, "java -cp \"%s\" %s %s", jar_path, class_name, params);
-        FILE *fp = _popen(command, "r");
-    #else
-        snprintf(command, BUFFER_SIZE, "java -cp '%s' %s %s", jar_path, class_name, params);
-        FILE *fp = popen(command, "r");
-    #endif
-
-    if (fp == NULL) {
-        chrome_read_message("{\"status\":\"error\",\"error\":\"Failed to start JVM\"}");
-        return;
-    }
-
-    char output[BUFFER_SIZE];
-    while (fgets(output, sizeof(output), fp) != NULL) {
-        chrome_read_message(output);
-    }
-
-    #ifdef _WIN32
-        int return_code = _pclose(fp);
-    #else
-        int return_code = pclose(fp);
-    #endif
-
-    if (return_code != 0) {
-        chrome_read_message("{\"status\":\"error\",\"error\":\"JVM exited with an error\"}");
-    } else {
-        chrome_read_message("{\"status\":\"success\"}");
-    }
+    // TODO: Implement
 }
 
 /**
