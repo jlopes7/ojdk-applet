@@ -10,10 +10,13 @@
 
 #define CL_APPLET_CLASSLOADER	"org/oplauncher/AppletClassLoader"
 
-// Path to the security policy file
-char *_applet_policy_filepath_;
+typedef struct {
+    JavaVM *jvm;
+    JNIEnv *env;
+} jvm_launcher_t;
 
 void get_executable_directory(char *buffer, size_t size);
-void configure_jvm_and_load_applet(const char *class_name, const char *params);
+int jvm_launcher_init(const char *class_name);
+void trigger_applet_execution(const char *class_name, data_tuplet_t *params);
 
 #endif
