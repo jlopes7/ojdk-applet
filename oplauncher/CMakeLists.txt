@@ -38,6 +38,8 @@ set(HEADERS
         oplauncher.h
         jvm_launcher.h
         utils.h
+        utils.c
+        errcodes.h
 )
 
 # Create the executable
