@@ -57,7 +57,7 @@ int jvm_launcher_init(const char *class_name) {
 	vm_args.ignoreUnrecognized = JNI_FALSE;
 
 	// Create the JVM
-	int res = JNI_CreateJavaVM(&PTR(jvm_launcher).jvm, (void **)&PTR(jvm_launcher).env, &vm_args);
+	int res = JNI_CreateJavaVM(&jvm_launcher->jvm, (void **)&jvm_launcher->env, &vm_args);
 	if (res < 0 || !PTR(jvm_launcher).env) {
 		fprintf(stderr, "Failed to create JVM\n");
 		return RC_ERR_FAILED_TO_LAUNCHJVM;
