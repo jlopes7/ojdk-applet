@@ -31,6 +31,7 @@ set(SOURCES
         main.c
         oplauncher.c
         jvm_launcher.c
+        utils.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -38,7 +39,6 @@ set(HEADERS
         oplauncher.h
         jvm_launcher.h
         utils.h
-        utils.c
         errcodes.h
 )
 
