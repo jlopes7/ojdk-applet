@@ -1,5 +1,7 @@
 set(CMAKE_LEGACY_CYGWIN_WIN32 0)
-cmake_minimum_required(VERSION 3.0)
+#cmake_minimum_required(VERSION 3.0)
+
+#set_target_properties(cjson PROPERTIES C_STANDARD 11)
 
 project(cJSON
     VERSION 1.7.18
@@ -8,6 +10,12 @@ project(cJSON
 cmake_policy(SET CMP0054 NEW)  # set CMP0054 policy
 
 include(GNUInstallDirs)
+
+if(MSVC)
+    # inherit settings for MSVC
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /std:c11 /D_CRT_SECURE_NO_WARNINGS")
+    #set_target_properties(cjson PROPERTIES COMPILE_FLAGS "/std:c11")
+endif()
 
 set(CJSON_VERSION_SO 1)
 set(CJSON_UTILS_VERSION_SO 1)
@@ -52,7 +60,7 @@ if (ENABLE_CUSTOM_COMPILER_FLAGS)
         # Define _CRT_SECURE_NO_WARNINGS to disable deprecation warnings for "insecure" C library functions
         list(APPEND custom_compiler_flags
             /GS
-            /Za
+            /std:c11
             /sdl
             /W4
             /wd4001
