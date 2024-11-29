@@ -3,7 +3,7 @@
 
 #include "errcodes.h"
 
-#define BUFFER_SIZE	4096
+#define BUFFER_SIZE	2048
 #define	PTR(X)		(*X)
 
 #if !defined (MAXPATHLEN)
