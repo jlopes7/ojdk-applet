@@ -4,6 +4,21 @@
 #include "utils.h"
 #include "oplauncher.h"
 
+// Global variable to store the JVM pointer
+extern jvm_launcher_t *jvm_launcher;
+
+/**
+ * Signal handler function
+ */
+void signal_handler(int sig) {
+    fprintf(stderr, "\nReceived signal %d, terminating JVM...\n", sig);
+
+    if (jvm_launcher && jvm_launcher->jvm) {
+        // Call DestroyJavaVM to clean up the JVM
+        jvm_launcher_terminate();
+    }
+}
+
 /**
  * Code Main Execution
  */
@@ -11,11 +26,16 @@ int main(void) {
     char buffer[BUFFER_SIZE];
     int rc = EXIT_SUCCESS;
 
+    memset(buffer, 0, BUFFER_SIZE);
     /// Initializes the JVM
     rc = jvm_launcher_init(CL_APPLET_CLASSLOADER);
     if (rc != EXIT_SUCCESS) {
         sendErrorMessage("Could not launch the JVM", rc);
     }
+
+    // Register signal handler for SIGINT and SIGTERM
+    signal(SIGINT, signal_handler);  // Handle Ctrl+C
+    signal(SIGTERM, signal_handler); // Handle termination signal
 
     /// Trigger the dispatcher service
     while (chrome_read_message(buffer)) {
