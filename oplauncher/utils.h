@@ -2,6 +2,7 @@
 #define _UTILS_H
 
 #include "errcodes.h"
+#include <stdio.h>
 
 #define BUFFER_SIZE	2048
 #define	PTR(X)		(*X)
@@ -13,6 +14,11 @@
 #   define MAXARRAYSIZE	4096 /*4KB arrays only*/
 #endif
 
+#ifdef _WIN32
+    #define popen _popen
+    #define pclose _pclose
+#endif
+
 typedef struct {
     char	*name;
     char	*value;
@@ -22,5 +28,9 @@ int sendErrorMessage(const char* errorMsg, const int errorCode);
 int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet);
 int chrome_read_message(char *buffer);
 void chrome_send_message(const char *message);
+
+#if defined(_WIN32) || defined(_WIN64)
+int resolveJNIDllDepsOnEnvVar(const char *relativePath);
+#endif
 
 #endif

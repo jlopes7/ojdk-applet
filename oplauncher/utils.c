@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
+
 /**
  * Retrieve a formated error message to the stdout
  * @param errorMsg  the error message
@@ -40,6 +44,49 @@ int sendErrorMessage(const char* errorMsg, const int errorCode) {
 
     return EXIT_SUCCESS;
 }
+
+#if defined(_WIN32) || defined(_WIN64)
+int resolveJNIDllDepsOnEnvVar(const char *relativePath) {
+    // Retrieve the Java home directory from the environment variable
+    char javaHome[MAX_PATH];
+    DWORD length = GetEnvironmentVariable("OPLAUNCHER_JAVA_HOME", javaHome, MAX_PATH);
+
+    if (length == 0) {
+        fprintf(stderr, "Error: OPLAUNCHER_JAVA_HOME environment variable is not set or invalid.\n");
+        return RC_ERR_MISSING_OPLAUCH_ENVVAR;
+    }
+
+    // Construct the path to the bin directory
+    char libPath[MAX_PATH];
+    snprintf(libPath, MAX_PATH, "%s/%s", javaHome, relativePath);
+
+    // Use AddDllDirectory to add the Java bin directory
+    HMODULE kernel32 = GetModuleHandle("kernel32.dll");
+    if (!kernel32) {
+        fprintf(stderr, "Error: Unable to load kernel32.dll\n");
+        return RC_ERR_FILE_LOADSYSLIBS;
+    }
+
+    typedef BOOL(WINAPI * AddDllDirectoryProc)(PCWSTR);
+    AddDllDirectoryProc addDllDirectory = (AddDllDirectoryProc)GetProcAddress(kernel32, "AddDllDirectory");
+    if (!addDllDirectory) {
+        fprintf(stderr, "Error: AddDllDirectory is not supported on this version of Windows.\n");
+        return RC_ERR_FILE_LOADSYSLIBS;
+    }
+
+    WCHAR wBinPath[MAX_PATH];
+    MultiByteToWideChar(CP_ACP, 0, libPath, -1, wBinPath, MAX_PATH);
+
+    if (!AddDllDirectory(wBinPath)) {
+        fprintf(stderr, "Error: Failed to add DLL directory %s\n", libPath);
+        return RC_ERR_FILE_LOADSYSLIBS;
+    }
+
+    fprintf(stderr, "DLL directory added: %s\n", libPath);
+
+    return EXIT_SUCCESS;
+}
+#endif
 
 /**
  *  Read the initial Applet parameters coming from Chrome
