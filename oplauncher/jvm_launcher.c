@@ -22,44 +22,58 @@ jvm_launcher_t *jvm_launcher;
  * Initializes the JVM
  */
 int jvm_launcher_init(const char *class_name) {
+	int res;
 	char exec_dir[BUFFER_SIZE];
 	char policy_path[BUFFER_SIZE];
 	JavaVMInitArgs vm_args;
 	JavaVMOption options[2];
 
-	char classpath_option[BUFFER_SIZE];
-	char policy_option[BUFFER_SIZE];
-
+	char *classpath_option = malloc(BUFFER_SIZE);
+	char *policy_option = malloc(BUFFER_SIZE);
 	applet_policy_filepath = malloc(BUFFER_SIZE);
-	jvm_launcher = malloc(sizeof(jvm_launcher_t));
 
-	// Sets all the memory pointers to '\0'
+	memset(classpath_option, 0, BUFFER_SIZE);
+	memset(policy_option, 0, BUFFER_SIZE);
 	memset(applet_policy_filepath, 0, BUFFER_SIZE);
-	memset(jvm_launcher, 0, sizeof(jvm_launcher_t));
 
-	// Get the directory of the executable
+	if (!classpath_option || !policy_option) {
+		fprintf(stderr, "Memory allocation failed\n");
+		return RC_ERR_FAILED_TO_LAUNCHJVM;
+	}
+
+	// Get executable directory and construct paths
 	get_executable_directory(exec_dir, BUFFER_SIZE);
-
-	// Construct the path to the applet.policy file
 	snprintf(policy_path, BUFFER_SIZE, "%s/applet.policy", exec_dir);
 
-	// Set JVM options
+	// Validate paths
+	if ( access(policy_path, F_OK) != 0 ) {
+		fprintf(stderr, "Policy file not found: %s\n", policy_path);
+		free(classpath_option);
+		free(policy_option);
+		return RC_ERR_POLICY_FILE_MISSING;
+	}
+
+	// Construct JVM options
 	snprintf(classpath_option, BUFFER_SIZE, "-Djava.class.path=%s", exec_dir);
 	snprintf(policy_option, BUFFER_SIZE, "-Djava.security.policy=%s", policy_path);
+
 	options[0].optionString = classpath_option;
 	options[1].optionString = policy_option;
 
-
-	// TODO: Hardcoded for version 8 now, needs to change in the future
+	JNI_GetDefaultJavaVMInitArgs(&vm_args);
+	// Initialize JVM arguments
 	vm_args.version = JNI_VERSION_1_8;
 	vm_args.nOptions = 2;
 	vm_args.options = options;
 	vm_args.ignoreUnrecognized = JNI_FALSE;
 
-	// Create the JVM
-	int res = JNI_CreateJavaVM(&jvm_launcher->jvm, (void **)&jvm_launcher->env, &vm_args);
-	if (res < 0 || !PTR(jvm_launcher).env) {
-		fprintf(stderr, "Failed to create JVM\n");
+	// Create JVM
+	res = JNI_CreateJavaVM(&(PTR(jvm_launcher).jvm), (void **)&(PTR(jvm_launcher).env), &vm_args);
+	free(classpath_option);
+	free(policy_option);
+
+	if (res < 0) {
+		fprintf(stderr, "JNI_CreateJavaVM failed with error code %d\n", res);
 		return RC_ERR_FAILED_TO_LAUNCHJVM;
 	}
 
@@ -108,7 +122,7 @@ void get_executable_directory(char *buffer, size_t size) {
 	}
 #endif
 	/// Just save the policy file
-	strncpy (applet_policy_filepath, buffer, BUFFER_SIZE);
+	strncpy (applet_policy_filepath, dirname(buffer), BUFFER_SIZE);
 }
 
 /**
