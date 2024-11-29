@@ -16,6 +16,9 @@ cmake --build $PWD/build
 ```
 
 ### For Windows
+Install MS Visual C++ Redistributable (x64): https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022
+Both `$%JRE_HOME%/bin` and `%JRE_HOME%\bin\server` need to be in the system path before running the code
+
 1. Make sure that `CC` from Visual Studio 17 compiler tools are correctly installed
 2. Simply run the build batch file
 ```bash
