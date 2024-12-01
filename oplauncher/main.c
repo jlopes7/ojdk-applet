@@ -10,6 +10,8 @@
 // Global variable to store the JVM pointer
 extern jvm_launcher_t *jvm_launcher;
 
+volatile End_OpLauncher_Process = FALSE;
+
 /**
  * Signal handler function
  */
@@ -77,17 +79,17 @@ int main(void) {
 
     // Retrieve the OPLAUNCHER_JAVA_HOME environment variable
     if ( resolveJNIDllDepsOnEnvVar("jre/bin/server") != EXIT_SUCCESS ) {
-        return (EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     if ( resolveJNIDllDepsOnEnvVar("jre/bin") != EXIT_SUCCESS ) {
-        return (EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     if ( resolveJNIDllDepsOnEnvVar("lib") != EXIT_SUCCESS ) {
-        return (EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_USER_DIRS);
-    SetDllDirectory(NULL);
+    //SetDllDirectory(NULL);
 
     // Use LoadLibraryEx to load jvm.dll with the extended DLL search path
     snprintf(javaHome, MAX_PATH, "%s/jre/bin/server/jvm.dll", javaHome);
@@ -122,7 +124,8 @@ int main(void) {
 
     fprintf(stdout, "TEST!");
     /// Trigger the dispatcher service
-    while (chrome_read_message(buffer)) {
+    while (!End_OpLauncher_Process /*Controls either if the process should end naturally or not*/
+                && chrome_read_message(buffer)) {
         // Parse the incoming JSON (a simple example without full JSON parsing)
         char *class_name = NULL;
         char *jar_path = NULL;
@@ -135,7 +138,7 @@ int main(void) {
             sendErrorMessage("Could not read the message sent from chrome", rc);
         }
 
-        if (strlen(class_name) > 0 && strlen(jar_path) > 0) {
+        if (class_name!=NULL && jar_path!= NULL && strlen(class_name) > 0 && strlen(jar_path) > 0) {
             //launch_jvm(class_name, jar_path, params);
         }
         else {
