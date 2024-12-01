@@ -64,9 +64,15 @@ set(JAVA_INCLUDE_DIR "${OPLAUNCHER_JAVA_HOME}/include")
 set(JAVA_INCLUDE_DIR2 "${OPLAUNCHER_JAVA_HOME}/include/win32")
 set(JAVA_JVM_LIB "${OPLAUNCHER_JAVA_HOME}/lib/jvm.lib")
 set(JVM_DLL "${OPLAUNCHER_JAVA_HOME}/jre/bin/server/jvm.dll")
-set(JAVA_DLL "${OPLAUNCHER_JAVA_HOME}/jre/bin/java.dll")
+set(JAVA_DLL "${OPLAUNCHER_JAVA_HOME}/jre/bin/java.dll")# Path to the image in the source directory
+set(SPLASH_IMAGE "${CMAKE_SOURCE_DIR}/ui/images/oplauncher_splash.bmp")
+set(CONSOLE_ICON "${CMAKE_SOURCE_DIR}/ui/images/oplauncher_64x64.ico")
 
-# Validate the paths
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
+endif()
+
+    # Validate the paths
 if(NOT EXISTS "${JAVA_INCLUDE_DIR}/jni.h")
     message(FATAL_ERROR "Could not find jni.h in ${JAVA_INCLUDE_DIR}. Ensure OPLAUNCHER_JAVA_HOME is set correctly.")
 endif()
@@ -89,6 +95,8 @@ set(SOURCES
         oplauncher.c
         jvm_launcher.c
         utils.c
+        ui/splash.c
+        ui/java_console.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -97,10 +105,20 @@ set(HEADERS
         jvm_launcher.h
         utils.h
         errcodes.h
+        ui/splash.h
+        ui/splash.h
+        ui/java_console.h
+)
+
+# Resource files
+set (RESOURCES
+        ui/resource.h
 )
 
 # Create the executable
-add_executable(oplauncher ${SOURCES} ${HEADERS})
+add_executable(oplauncher ${SOURCES} ${HEADERS} ${RESOURCES})
+# Add the resource file to your executable
+target_sources(oplauncher PRIVATE ui/resources.rc)
 
 if(WIN32)
     # Debugging paths (optional)
@@ -112,6 +130,20 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:cjson>               # Source location of cjson.dll
             $<TARGET_FILE_DIR:oplauncher>      # Destination directory
+    )
+    # Copy the image to the build directory
+    add_custom_command(
+            TARGET oplauncher POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${SPLASH_IMAGE}
+            $<TARGET_FILE_DIR:oplauncher>
+    )
+    # Copy the console icon
+    add_custom_command(
+            TARGET oplauncher POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CONSOLE_ICON}
+            $<TARGET_FILE_DIR:oplauncher>
     )
 endif()
 
@@ -127,7 +159,25 @@ set(POLICY_DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY ${POLICY_FILE} DESTINATION ${POLICY_DESTINATION})
 
 # Link libraries (JNI and cJSON)
-target_link_libraries(oplauncher ${JAVA_JVM_LIB} cjson)
+if(WIN32)
+    target_link_libraries(oplauncher
+            ${JAVA_JVM_LIB}
+            cjson
+            kernel32.lib
+            user32.lib
+            gdi32.lib
+            winspool.lib
+            shell32.lib
+            ole32.lib
+            oleaut32.lib
+            uuid.lib
+            comdlg32.lib
+            advapi32.lib
+            comctl32.lib # Add this line
+    )
+else()
+    target_link_libraries(oplauncher ${JAVA_JVM_LIB} cjson)
+endif()
 
 # Output message for the user
 message(STATUS "Configuration complete for ${OS_PLATFORM}")
