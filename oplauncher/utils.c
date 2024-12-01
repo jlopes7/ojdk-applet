@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -87,6 +88,64 @@ int resolveJNIDllDepsOnEnvVar(const char *relativePath) {
     return EXIT_SUCCESS;
 }
 #endif
+
+void print_hello() {
+    // Get the current time
+    time_t now = time(NULL);
+
+    // Convert it to local time
+    struct tm *local = localtime(&now);
+
+    fprintf(stderr, "+---------------------------------------------------+\n");
+    fprintf(stderr, "+      OJDK Applet Plugin Launcher version 1.0b     +\n");
+    fprintf(stderr, "+      Standard Output Console                      +\n");
+    fprintf(stderr, "+---------------------------------------------------+\n");
+    fprintf(stderr, "Launch date and time: %04d-%02d-%02d %02d:%02d:%02d\n",
+           PTR(local).tm_year + 1900,   // Year since 1900
+           PTR(local).tm_mon + 1,       // Month (0-11, so we add 1)
+           PTR(local).tm_mday,          // Day of the month
+           PTR(local).tm_hour,          // Hours (24-hour format)
+           PTR(local).tm_min,           // Minutes
+           PTR(local).tm_sec);          // Seconds
+    fprintf(stderr, "\n");
+}
+
+char* replace_with_crlf(const char* input) {
+    if (!input) return NULL;
+
+    // Calculate the size of the new string
+    size_t inputLen = strlen(input);
+    size_t newLen = 0;
+
+    for (size_t i = 0; i < inputLen; i++) {
+        if (input[i] == '\n') {
+            newLen += 2; // Add space for \r\n
+        } else {
+            newLen += 1;
+        }
+    }
+
+    // Allocate memory for the new string
+    char* output = (char*)malloc(newLen + 1); // +1 for the null terminator
+    if (!output) return NULL;
+    memset(output, 0, newLen + 1);
+
+    // Construct the new string
+    size_t j = 0;
+    for (size_t i = 0; i < inputLen; i++) {
+        if (input[i] == '\n') {
+            output[j++] = '\r';
+            output[j++] = '\n';
+        }
+        else {
+            output[j++] = input[i];
+        }
+    }
+
+    output[j] = '\0'; // Null-terminate the string
+    return output;
+}
+
 
 /**
  *  Read the initial Applet parameters coming from Chrome

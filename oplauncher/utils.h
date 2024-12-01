@@ -4,7 +4,7 @@
 #include "errcodes.h"
 #include <stdio.h>
 
-#define BUFFER_SIZE	2048
+#define BUFFER_SIZE	4096
 #define	PTR(X)		(*X)
 
 #if !defined (MAXPATHLEN)
@@ -28,6 +28,9 @@ int sendErrorMessage(const char* errorMsg, const int errorCode);
 int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet);
 int chrome_read_message(char *buffer);
 void chrome_send_message(const char *message);
+char* replace_with_crlf(const char* input);
+
+void print_hello(void);
 
 #if defined(_WIN32) || defined(_WIN64)
 int resolveJNIDllDepsOnEnvVar(const char *relativePath);
