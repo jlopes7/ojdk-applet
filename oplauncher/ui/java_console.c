@@ -289,9 +289,6 @@ void show_console(HINSTANCE hInstance) {
     hMonitorThread = CreateThread(NULL, 0, monitor_pipe_thread, NULL, 0, NULL);
 }
 
-unsigned __stdcall kill_console_monitor(void* param) {
-}
-
 /**
  * Hide the console window and restore stdout/stderr.
  */
