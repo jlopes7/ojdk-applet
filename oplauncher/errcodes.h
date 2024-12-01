@@ -1,5 +1,5 @@
-#ifndef ERRCODES_H
-#define ERRCODES_H
+#ifndef _ERRCODES_H
+#define _ERRCODES_H
 
 #define RC_ERR_GENERAL_ERROR			    1
 #define RC_ERR_CHROME_MESSAGE_TO_LARGE		7001
@@ -19,4 +19,4 @@
 #define RC_ERR_MISSING_OPLAUCH_ENVVAR       7015
 #define RC_ERR_FILE_LOADSYSLIBS             7016
 
-#endif //ERRCODES_H
+#endif //_ERRCODES_H
