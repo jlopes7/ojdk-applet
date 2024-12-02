@@ -39,7 +39,7 @@ elseif(APPLE)
 
     # Java-specific settings for macOS
     if(NOT DEFINED OPLAUNCHER_JAVA_HOME)
-        message(FATAL_ERROR "Please define OPLAUNCHER_JAVA_HOME for macOS. Example: -DOPLAUNCHER_JAVA_HOME=/path/to/java")
+        message(FATAL_ERROR "Please define OPLAUNCHER_JAVA_HOME for the build process. Example: -DOPLAUNCHER_JAVA_HOME=/path/to/java")
     endif()
 
     set(JAVA_INCLUDE_DIR "${OPLAUNCHER_JAVA_HOME}/include")
