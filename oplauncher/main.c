@@ -9,6 +9,7 @@
 #include "ui/win_java_console.h"
 #else
 #include "ui/mac_splash.h"
+#include "ui/mac_java_console.h"
 #endif
 
 // Global variable to store the JVM pointer
@@ -110,9 +111,11 @@ int main(void) {
     }
 #else
     // Splash screen for initializing the OJDK Plugin
-    show_splash_screen();
+    //show_splash_screen();
 
     // Start the Java Console
+    show_console();
+    print_hello();
 #endif
 
     memset(buffer, 0, BUFFER_SIZE);
