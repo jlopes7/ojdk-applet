@@ -109,7 +109,10 @@ int main(void) {
         return EXIT_FAILURE;
     }
 #else
+    // Splash screen for initializing the OJDK Plugin
     show_splash_screen();
+
+    // Start the Java Console
 #endif
 
     memset(buffer, 0, BUFFER_SIZE);
@@ -127,8 +130,6 @@ int main(void) {
     // Hide the splash screen
     hide_splash_screen();
 #endif
-
-    fprintf(stdout, "TEST!");
     /// Trigger the dispatcher service
     while (!End_OpLauncher_Process /*Controls either if the process should end naturally or not*/
                 && chrome_read_message(buffer)) {
