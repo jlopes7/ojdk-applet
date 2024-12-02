@@ -4,13 +4,17 @@
 #include "utils.h"
 #include "oplauncher.h"
 
-#include "ui/splash.h"
-#include "ui/java_console.h"
+#if defined(_WIN32) || defined(_WIN64)
+#include "ui/win_splash.h"
+#include "ui/win_java_console.h"
+#else
+#include "ui/mac_splash.h"
+#endif
 
 // Global variable to store the JVM pointer
 extern jvm_launcher_t *jvm_launcher;
 
-volatile End_OpLauncher_Process = FALSE;
+volatile BOOL End_OpLauncher_Process = FALSE;
 
 /**
  * Signal handler function
@@ -104,6 +108,8 @@ int main(void) {
         fprintf(stderr, "Error: Could not set control handler\n");
         return EXIT_FAILURE;
     }
+#else
+    show_splash_screen();
 #endif
 
     memset(buffer, 0, BUFFER_SIZE);
