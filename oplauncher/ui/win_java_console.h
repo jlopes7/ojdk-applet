@@ -1,5 +1,5 @@
-#ifndef _JAVA_CONSOLE_H
-#define _JAVA_CONSOLE_H
+#ifndef _WIN_JAVA_CONSOLE_H
+#define _WIN_JAVA_CONSOLE_H
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -20,4 +20,4 @@ void show_console(HINSTANCE hInstance);
 void hide_console(void);
 #endif
 
-#endif //_JAVA_CONSOLE_H
+#endif //_WIN_JAVA_CONSOLE_H

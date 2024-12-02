@@ -1,7 +1,9 @@
 #ifndef _SPLASH_H
 #define _SPLASH_H
 
+#if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#endif
 
 // Splash screen dimensions
 #define SPLASH_WIDTH        670

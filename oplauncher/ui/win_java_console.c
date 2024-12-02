@@ -1,4 +1,4 @@
-#include "java_console.h"
+#include "win_java_console.h"
 #include "resource.h"
 
 #include <stdio.h>

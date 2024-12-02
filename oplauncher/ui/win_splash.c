@@ -1,4 +1,4 @@
-#include "splash.h"
+#include "win_splash.h"
 
 static HWND hWnd;
 static HBITMAP hBitmap;
