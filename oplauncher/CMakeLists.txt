@@ -142,11 +142,12 @@ if (WIN32)
 elseif(APPLE)
     list(APPEND SOURCES
         ui/mac_splash.m
-    #    ui/mac_java_console.c
+        ui/mac_java_console.m
     )
 
     list(APPEND HEADERS
         ui/mac_splash.h
+        ui/mac_java_console.h
     )
 
     # No resources for Mac
