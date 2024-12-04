@@ -14,8 +14,10 @@
 #   define MAXARRAYSIZE	4096 /*4KB arrays only*/
 #endif
 
-#ifndef BOOL
-#define BOOL unsigned short int
+#if !defined (WIN32)
+#   ifndef BOOL
+#       define BOOL unsigned short
+#   endif
 #endif
 
 #ifndef TRUE
@@ -35,11 +37,14 @@ typedef struct {
     char	*value;
 } data_tuplet_t;
 
+typedef unsigned short errorcode_t;
+
 int sendErrorMessage(const char* errorMsg, const int errorCode);
 int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet);
 int chrome_read_message(char *buffer);
 void chrome_send_message(const char *message);
 char* replace_with_crlf(const char* input);
+const char* getOpLauncherCommanderJarFileName(void);
 
 void print_hello(void);
 

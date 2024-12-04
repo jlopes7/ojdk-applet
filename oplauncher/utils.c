@@ -46,6 +46,11 @@ int sendErrorMessage(const char* errorMsg, const int errorCode) {
     return EXIT_SUCCESS;
 }
 
+const char* getOpLauncherCommanderJarFileName() {
+    // TODO: Currently hardcoded, change in the future
+    return "oplauncher-commander-1.0-beta.jar";
+}
+
 #if defined(_WIN32) || defined(_WIN64)
 int resolveJNIDllDepsOnEnvVar(const char *relativePath) {
     // Retrieve the Java home directory from the environment variable
