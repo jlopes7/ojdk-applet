@@ -27,8 +27,8 @@ typedef struct {
 } jvm_launcher_t;
 
 void get_executable_directory(char *buffer, size_t size);
-int jvm_launcher_init(const char *class_name);
+errorcode_t jvm_launcher_init(const char *class_name);
 void jvm_launcher_terminate(void);
-void trigger_applet_execution(const char *class_name, data_tuplet_t *params);
+errorcode_t trigger_applet_execution(const char *class_name, const char *jar_file, char **params, int param_count);
 
 #endif
