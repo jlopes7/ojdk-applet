@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(oplauncher LANGUAGES C OBJC)
+if(APPLE)
+    project(oplauncher LANGUAGES C OBJC)
+else()
+    project(oplauncher LANGUAGES C)
+endif()
 
 # Set the C standard
 set(CMAKE_C_STANDARD 11)
