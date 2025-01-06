@@ -118,6 +118,7 @@ set(SOURCES
         oplauncher.c
         jvm_launcher.c
         utils.c
+        iohelper.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -126,6 +127,8 @@ set(HEADERS
         jvm_launcher.h
         utils.h
         errcodes.h
+        iohelper.h
+        chrome_ext_comm.h
 )
 
 # Specific files per platform
@@ -236,7 +239,8 @@ else()
             uuid.lib
             comdlg32.lib
             advapi32.lib
-            comctl32.lib # Add this line
+            comctl32.lib
+            Crypt32.lib
     )
 endif()
 

@@ -21,7 +21,7 @@ jvm_launcher_t *jvm_launcher;
 /**
  * Initializes the JVM
  */
-errorcode_t jvm_launcher_init(const char *class_name) {
+returncode_t jvm_launcher_init(const char *class_name) {
 	int res;
 	char exec_dir[BUFFER_SIZE];
 	char policy_path[BUFFER_SIZE];
@@ -155,7 +155,7 @@ void get_executable_directory(char *buffer, size_t size) {
  *
  * @return int Status of the function call (0 for success, non-zero for failure).
  */
-errorcode_t trigger_applet_execution(const char *class_name, const char *jar_file, char **params, int param_count) {
+returncode_t trigger_applet_execution(const char *class_name, const char *jar_file, char **params, int param_count) {
 	const int kNumOfParameters = MAXARRAYSIZE;
 
 	if (!jvm_launcher || !jvm_launcher->jvm || !jvm_launcher->env) {

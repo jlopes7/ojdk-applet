@@ -8,7 +8,12 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#include <shlobj.h> // For SHGetFolderPath
 #endif
+
+#include <direct.h> // For _mkdir
+
+returncode_t create_nested_dirs(const char *);
 
 /**
  * Retrieve a formated error message to the stdout
@@ -151,17 +156,28 @@ char* replace_with_crlf(const char* input) {
     return output;
 }
 
-
 /**
  *  Read the initial Applet parameters coming from Chrome
  * @param className the name of the class
  * @param jarPath   the JAR path to read from
  * @param params    the Applet parameters
  */
-int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet) {
-    cJSON *className;
-    cJSON *jarPath;
-    cJSON *params;
+returncode_t parse_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet) {
+    return parse_msg_from_chrome_init(jsonmsg, clName, jpath, NULL, tuplet);
+}
+
+/**
+ *  Read the initial Applet parameters coming from Chrome
+ * @param className the name of the class
+ * @param jarPath   the JAR path to read from
+ * @param type      the type to save to the FS, e.g., either Applet class or Jar file
+ * @param params    the Applet parameters
+ */
+returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **clName, char **jpath, char **type, data_tuplet_t *tuplet) {
+    cJSON   *className,
+            *jarPath,
+            *params,
+            *fileType;
     // Parse the JSON string
     cJSON *json = cJSON_Parse(jsonmsg);
     if (json == NULL) {
@@ -173,9 +189,10 @@ int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_
     }
 
     // Extract the values
-    className = cJSON_GetObjectItemCaseSensitive(json, "className");
-    jarPath = cJSON_GetObjectItemCaseSensitive(json, "jarPath");
-    params = cJSON_GetObjectItemCaseSensitive(json, "params");
+    className = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_CLZZFILE);
+    jarPath = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_JARFILE);
+    fileType = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_FILETYPE);
+    params = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_PARAMETERS);
 
     // Print the extracted values
     if (cJSON_IsString(className) && (className->valuestring != NULL)) {
@@ -184,8 +201,11 @@ int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_
     if (cJSON_IsString(jarPath) && (jarPath->valuestring != NULL)) {
         PTR(jpath) = strdup(jarPath->valuestring);
     }
+    if ( type != NULL && cJSON_IsString(fileType) && (fileType->valuestring != NULL) ) {
+        PTR(type) = strdup(fileType->valuestring);
+    }
     // Process the params array
-    if (cJSON_IsArray(params)) {
+    if (params != NULL && cJSON_IsArray(params)) {
         cJSON *param = NULL;
 
         const int array_size = cJSON_GetArraySize(params);
@@ -201,10 +221,6 @@ int read_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_
                 }
             }
         }
-    }
-    else {
-        fprintf(stderr, "params is not an array or is missing.\n");
-        return RC_ERR_COULDNOT_PARSEJSON;
     }
 
     // Clean up
@@ -249,4 +265,70 @@ void chrome_send_message(const char *message) {
     fwrite(&message_length, 4, 1, stdout);
     fwrite(message, message_length, 1, stdout);
     fflush(stdout);
+}
+
+/**
+ * Serialize the directory path to create nested directories that may not exist
+ * @param path the directory structure to be created
+ */
+returncode_t create_nested_dirs(const char *path) {
+#if defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+    HRESULT result;
+    // Validate input
+    if (!path || *path == '\0') {
+        char errMsg[BUFFER_SIZE];
+        snprintf(errMsg, BUFFER_SIZE, "Invalid path: %s", path);
+        fprintf(stderr, "%s\n", errMsg);
+        sendErrorMessage(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
+        return RC_ERR_IO_CREATEDIR_FAILED;
+    }
+
+    // Create the nested directories
+    result = SHCreateDirectoryEx(NULL, path, NULL);
+    if (result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS) {
+        // Directory created or already exists
+        return EXIT_SUCCESS;
+    } else {
+        char errMsg[BUFFER_SIZE];
+        snprintf(errMsg, BUFFER_SIZE, "Failed to create directory '%s' (error code: %ld).\n", path, result);
+        fprintf(stderr, "%s\n", errMsg);
+        sendErrorMessage(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
+        return RC_ERR_IO_CREATEDIR_FAILED;
+    }
+#else
+    // TODO: Not implemented yet for other platforms
+    // TODO: Implement in the future
+    return RC_ERR_IO_CREATEDIR_FAILED;
+#endif
+}
+
+/**
+ * Function to create the cache directory if it doesn't exist
+ * Wrapper function to @create_nested_dirs
+ */
+returncode_t create_cache_directory(const char *cache_path) {
+    return create_nested_dirs(cache_path);
+}
+
+/*
+ * Function to construct the path to the cache directory
+ */
+returncode_t load_cache_path(char *cache_path, size_t max_size) {
+#if defined(_WIN32) || defined(_WIN64)
+    // Get the user's home directory
+    char home_dir[MAX_PATH];
+    if (SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, home_dir) != S_OK) {
+        const char *errMsg = "Error retrieving home directory";
+        fprintf(stderr, "%s\n", errMsg);
+        sendErrorMessage(errMsg, RC_ERR_MSIO_RETRIEVAL_FAILED);
+        return RC_ERR_MSIO_RETRIEVAL_FAILED;
+    }
+
+    // Construct the path to the cache directory: $HOME/.oplauncher/cache
+    snprintf(cache_path, max_size, "%s\\%s", home_dir, OPLAUNCHER_CACHE_BASELINE_PATH);
+#else
+    // TODO: Implement
+#endif
+
+    return EXIT_SUCCESS;
 }

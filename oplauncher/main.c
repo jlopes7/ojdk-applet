@@ -3,6 +3,7 @@
 #include "jvm_launcher.h"
 #include "utils.h"
 #include "oplauncher.h"
+#include "iohelper.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "ui/win_splash.h"
@@ -66,12 +67,16 @@ int main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmd
 int main(void) {
 #endif
     char buffer[BUFFER_SIZE];
+    char cache_path[MAX_PATH];
     int rc = EXIT_SUCCESS;
 
 #if defined(_WIN32) || defined(_WIN64)
     char javaHome[MAX_PATH];
     GetEnvironmentVariable("OPLAUNCHER_JAVA_HOME", javaHome, MAX_PATH);
 
+    /*
+     * Step 1: Service initialization...
+     */
     // Show the splash screen
     show_splash_screen(hInstance);
     // Show the Java console
@@ -117,14 +122,59 @@ int main(void) {
     show_console();
     print_hello();
 #endif
-
-    memset(buffer, 0, BUFFER_SIZE);
-    /// Initializes the JVM
+    _MEMZERO(buffer, BUFFER_SIZE);
+    /*
+     * Step 2: Initializes the JVM
+     */
     rc = jvm_launcher_init(CL_APPLET_CLASSLOADER);
     if (rc != EXIT_SUCCESS) {
         sendErrorMessage("Could not launch the JVM", rc);
     }
 
+    /*
+     * Step 3: Save the class/jar bits to be loaded by the JVM
+     */
+    load_cache_path(cache_path, sizeof(cache_path));
+
+    // Create cache directory if it doesn't exist
+    create_cache_directory(cache_path);
+
+    // First chrome message is to prepare and load the applet
+    chrome_read_message(buffer);
+    // Parse the incoming JSON (a simple example without full JSON parsing)
+    char *class_name;
+    char *jar_path;
+    char *file_type;
+    char output_file[BUFFER_SIZE];
+    rc = parse_msg_from_chrome_init(buffer, &class_name, &jar_path, &file_type, NULL);
+    if (rc != EXIT_SUCCESS) {
+        sendErrorMessage("Could not bits from the Applet class or Jar file", rc);
+        free(class_name);
+        free(jar_path);
+        free(file_type);
+        return EXIT_FAILURE;
+    }
+    snprintf(output_file, BUFFER_SIZE, "%s.%s", (strncmp(file_type, CHROME_EXT_FILETYPEJAR, MAX_PATH) ? jar_path : class_name),
+                                                                (strncmp(file_type, CHROME_EXT_FILETYPEJAR, MAX_PATH) ? CHROME_EXT_FILETYPEJAR : CHROME_EXT_FILETYPECLAZZ));
+
+    rc = process_base64_file_from_json(buffer, output_file);
+    if (rc != EXIT_SUCCESS) {
+        char errMsg[BUFFER_SIZE];
+        snprintf(errMsg, BUFFER_SIZE, "An error occurred saving the file: %s", output_file);
+        sendErrorMessage(errMsg, rc);
+        free(class_name);
+        free(jar_path);
+        free(file_type);
+        return EXIT_FAILURE;
+    }
+    /// Cleanup
+    free(class_name);
+    free(jar_path);
+    free(file_type);
+
+    /*
+     * Step 3.1: Signal processing (optional step)
+     */
 #if !defined(_WIN32) || !defined(_WIN64)
     // Register signal handler for SIGINT and SIGTERM
     signal(SIGINT, signal_handler);  // Handle Ctrl+C
@@ -133,7 +183,10 @@ int main(void) {
     // Hide the splash screen
     hide_splash_screen();
 #endif
-    /// Trigger the dispatcher service
+    /*
+     * Step 4: Trigger the dispatcher service
+     */
+    memset(buffer, 0, BUFFER_SIZE);
     while (!End_OpLauncher_Process /*Controls either if the process should end naturally or not*/
                 && chrome_read_message(buffer)) {
         // Parse the incoming JSON (a simple example without full JSON parsing)
@@ -141,9 +194,9 @@ int main(void) {
         char *jar_path = NULL;
 
         data_tuplet_t params[MAXARRAYSIZE];
-        memset(params, 0, sizeof(params));
+        _MEMZERO(params, sizeof(params));
 
-        rc = read_msg_from_chrome(buffer, &class_name, &jar_path, params);
+        rc = parse_msg_from_chrome(buffer, &class_name, &jar_path, params);
         if (rc != EXIT_SUCCESS) {
             sendErrorMessage("Could not read the message sent from chrome", rc);
         }
@@ -154,6 +207,10 @@ int main(void) {
         else {
             sendErrorMessage("Invalid message format", RC_ERR_INVALID_MSGFORMAT);
         }
+
+        _MEMZERO(buffer, BUFFER_SIZE);
+        free(class_name);
+        free(jar_path);
     }
 
 #if defined(_WIN32) || defined(_WIN64)
