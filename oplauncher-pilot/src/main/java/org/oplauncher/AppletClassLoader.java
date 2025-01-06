@@ -1,6 +1,5 @@
 package org.oplauncher;
 
-import java.applet.AppletContext;
 import java.util.List;
 
 public class AppletClassLoader extends ClassLoader {
