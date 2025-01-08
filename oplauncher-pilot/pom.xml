@@ -38,9 +38,42 @@
             <artifactId>commons-codec</artifactId>
             <version>1.15</version>
         </dependency>
+
+        <!-- Unit Testing -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.8.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <sourceDirectory>src/main/java</sourceDirectory>
+        <testSourceDirectory>src/test/java</testSourceDirectory>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                </includes>
+                <excludes>
+                    <exclude>**/*.tmp</exclude>
+                </excludes>
+            </resource>
+        </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                </includes>
+                <excludes>
+                    <exclude>**/*.tmp</exclude>
+                </excludes>
+            </testResource>
+        </testResources>
+
         <plugins>
             <!-- Dependency plugin to copy dependencies -->
             <plugin>
@@ -61,6 +94,18 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- Surfire plugin for UT -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version> <!-- Use the latest stable version -->
+                <configuration>
+                    <suiteXmlFiles>
+                        <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                    </suiteXmlFiles>
+                </configuration>
             </plugin>
 
             <!-- Compiler plugin -->
