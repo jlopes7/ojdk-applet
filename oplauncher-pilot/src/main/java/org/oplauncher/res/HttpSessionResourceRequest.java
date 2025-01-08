@@ -21,6 +21,8 @@ public class HttpSessionResourceRequest implements IResourceRequest<FileResource
     protected HttpSessionResourceRequest() {}
 
     public FileResource verifyCache(URL url) throws OPLauncherException {
+        if (!ConfigurationHelper.isCacheActive()) return null; // Cache system needs to be active
+
         String cachePath = URLUtils.reverseUrlToPackageName(url);
         File cacheHome = new File(ConfigurationHelper.getCacheHomeDirectory(), cachePath);
 

@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="oplauncher-pilot-suite">
+    <test name="UTClasses_General">
+        <classes>
+            <class name="org.oplauncher.ConfigurationHelperTest"/>
+        </classes>
+    </test>
+</suite>

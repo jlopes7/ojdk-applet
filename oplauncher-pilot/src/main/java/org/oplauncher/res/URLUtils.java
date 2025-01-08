@@ -1,6 +1,7 @@
 package org.oplauncher.res;
 
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.Header;
 import org.oplauncher.ErrorCode;
@@ -50,13 +51,14 @@ public class URLUtils {
 
     public static String generateMD5FromFileName(String filename) {
         try {
+            String filenameExt = FilenameUtils.getExtension(filename);
             MessageDigest md = MessageDigest.getInstance("MD5");
 
             // Compute the hash
             byte[] hashBytes = md.digest(filename.getBytes());
 
             // Convert to hexadecimal
-            return Hex.encodeHexString(hashBytes);
+            return String.format("%s_%s", filenameExt.toLowerCase(), Hex.encodeHexString(hashBytes));
         }
         catch (NoSuchAlgorithmException e) {
             throw new OPLauncherException(String.format("Error processing the hashing algorithm for the file: [%s]",filename), e, SECURITY_ERROR);

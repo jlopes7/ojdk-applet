@@ -1,0 +1,29 @@
+package org.oplauncher;
+
+public enum OpCode {
+    LOAD_APPLET("load_applet"),
+    UNKNOWN("unknown")
+      ;
+
+    public String opcode() {
+        return _opcode;
+    }
+
+    static public OpCode parse(String opcode) {
+        if (opcode == null) return UNKNOWN;
+
+        for (OpCode op : OpCode.values()) {
+            if (op.opcode().equalsIgnoreCase(opcode)) {
+                return op;
+            }
+        }
+
+        return UNKNOWN;
+    }
+
+    private OpCode(String opcd) {
+        _opcode = opcd;
+    }
+    // class properties
+    private String _opcode;
+}
