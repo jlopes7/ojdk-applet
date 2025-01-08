@@ -13,7 +13,7 @@ public enum OpCode {
         if (opcode == null) return UNKNOWN;
 
         for (OpCode op : OpCode.values()) {
-            if (op.opcode().equalsIgnoreCase(opcode)) {
+            if (op.opcode().equalsIgnoreCase(opcode.trim())) {  
                 return op;
             }
         }
