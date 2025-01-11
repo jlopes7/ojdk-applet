@@ -10,4 +10,7 @@ public interface IConstants {
     static public final String CONFIG_PROP_CONFIG_ROOT = "oplauncher.config.root";
     static public final String CONFIG_PROP_RESOURCENAME = "oplauncher.runtime.res_name";
     static public final String CONFIG_PROP_CURTEMPCP = "oplauncher.runtime.current.classpath";
+
+    static public final String APPLETPARAM_WIDTH = "width";
+    static public final String APPLETPARAM_HEIGHT = "height";
 }

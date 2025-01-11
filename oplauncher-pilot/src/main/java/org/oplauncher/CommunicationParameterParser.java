@@ -9,11 +9,12 @@ import java.util.Map;
 import static java.util.regex.Pattern.quote;
 import static org.oplauncher.IConstants.*;
 
-public class CommunicationParameterHelper {
+public class CommunicationParameterParser {
     private static final int IDX_OPCODE  = 0x00;
     private static final int IDX_BASEURL = 0x01;
     private static final int IDX_APPLTTAG = 0x02;
-    private static final int IDX_RESURL  = 0x03;
+    private static final int IDX_APPLTPARAMS = 0x03;
+    private static final int IDX_RESURL  = 0x04;
 
     public enum AppletTagDef {
         CODEBASE, ARCHIVES, UNKNOWN
@@ -60,6 +61,21 @@ public class CommunicationParameterHelper {
         }
 
         throw new RuntimeException(String.format("No Base URL found for params: %s", params));
+    }
+
+    static public <T>AppletParameters resolveAppletParameters(List<T> params) {
+        String val;
+        if ( params!=null && (val = paramValue(params, IDX_APPLTPARAMS)) != null ) {
+            String opcode = resolveOpCode(params);
+            if (val != null && OpCode.parse(opcode) == OpCode.LOAD_APPLET) {
+                return AppletParameters.getInstance(val);
+            }
+            else if (val != null) {
+                throw new RuntimeException(String.format("Incorrect operation provided: %s. Expected op: load_applet", opcode));
+            }
+        }
+
+        throw new RuntimeException(String.format("No applet parameters set in the request: %s", params));
     }
 
     static public <T>AppletTagDef resolveAppletTagDef(List<T> params) {

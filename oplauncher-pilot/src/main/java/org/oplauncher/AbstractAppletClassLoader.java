@@ -32,7 +32,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
     public String processAppletC2A(List<T> parameters) {
         LOCK.lock(); // only 1 op at a time!
         try {
-            String opcode = CommunicationParameterHelper.resolveOpCode(parameters);
+            String opcode = CommunicationParameterParser.resolveOpCode(parameters);
 
             ///  switch the process based on the opcode given as parameter
             switch (OpCode.parse(opcode)) {
@@ -54,20 +54,26 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
     protected List<FileResource> loadAppletFromURL(List<T> parameters) throws OPLauncherException {
         HttpSessionResourceRequest session = ResourceRequestFactory.getResourceRequest(HTTP_SESSION_REQUEST);
-        CommunicationParameterHelper.AppletTagDef applTagDef = CommunicationParameterHelper.resolveAppletTagDef(parameters);
-        String loadSourceBaseURLPath = CommunicationParameterHelper.resolveBaseUrl(parameters);
-        String loadResApplType = CommunicationParameterHelper.resolveAppletTag(parameters, applTagDef);
-        String loadSourceResURLPath  = CommunicationParameterHelper.resolveLoadResourceURL(parameters);
+
+        CommunicationParameterParser.AppletTagDef applTagDef = CommunicationParameterParser.resolveAppletTagDef(parameters);
+        String loadSourceBaseURLPath = CommunicationParameterParser.resolveBaseUrl(parameters);
+        String loadResApplType = CommunicationParameterParser.resolveAppletTag(parameters, applTagDef);
+        String loadSourceResURLPath  = CommunicationParameterParser.resolveLoadResourceURL(parameters);
+
+        ///  Load all applet parameters and save it to the base classloader to be access by the Applet Context
+        ///  initialization at a later time
+        _appletParameters = CommunicationParameterParser.resolveAppletParameters(parameters);
+
         try {
             StringBuilder sb = new StringBuilder(loadSourceBaseURLPath);
             if ( !loadSourceBaseURLPath.endsWith("/") ) sb.append('/');
-            if ( applTagDef == CommunicationParameterHelper.AppletTagDef.CODEBASE ) sb.append(loadResApplType).append('/');
+            if ( applTagDef == CommunicationParameterParser.AppletTagDef.CODEBASE ) sb.append(loadResApplType).append('/');
 
             URL loadSourceBaseURL = new URL(sb.append(loadSourceResURLPath).toString());
 
             FileResource res = session.verifyCache(loadSourceBaseURL);
             if (res == null) {
-                res = session.getResource(loadSourceBaseURL, CommunicationParameterHelper.resolveCookies(parameters));
+                res = session.getResource(loadSourceBaseURL, CommunicationParameterParser.resolveCookies(parameters));
             }
 
             // Add the loaded file to the control map
@@ -152,8 +158,13 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         }
     }
 
+    protected AppletParameters getAppletParameters() {
+        return _appletParameters;
+    }
+
     public abstract String processLoadAppletOp(List<T> parameters) throws OPLauncherException;
 
     // class properties
     private Map<String, FileResource> _fileMap;
+    private AppletParameters _appletParameters;
 }

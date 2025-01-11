@@ -1,14 +1,10 @@
 package org.oplauncher;
 
-import org.apache.commons.io.IOUtils;
 import org.oplauncher.res.FileResource;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.jar.JarFile;
 
 import static org.oplauncher.ErrorCode.*;
 
@@ -53,8 +49,11 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
             appletClassLoader.loadAppletFromURL(Arrays.asList("load_applet",
                     "https://www.cs.fsu.edu/~jtbauer/cis3931/tutorial/applet/overview",
                     "codebase=example",
+                    "width=100;height=100",
                     "Simple.class"));
-            appletClassLoader.findClass("Simple");
+            Class<?> klass = appletClassLoader.findClass("Simple");
+            System.out.printf("Class name: %s%n", klass.getCanonicalName());
+            Arrays.asList(klass.getDeclaredMethods()).forEach(System.out::println);
         }
         catch (Exception e) {
             e.printStackTrace(System.err);
