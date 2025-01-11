@@ -6,7 +6,8 @@ public enum ErrorCode {
     MALFORMED_URL(7002),
     SECURITY_ERROR(7003),
     FAILED_TO_DOWNLOAD_FILE(7004),
-    UNSUPPORTED_OPCODE(7005)
+    UNSUPPORTED_OPCODE(7005),
+    CLASSPATH_LOAD_ERROR(7006),
       ;
 
     private ErrorCode(int cd) {

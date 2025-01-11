@@ -1,8 +1,16 @@
 package org.oplauncher;
 
+import org.apache.commons.io.IOUtils;
 import org.oplauncher.res.FileResource;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
+import java.util.jar.JarFile;
+
+import static org.oplauncher.ErrorCode.*;
 
 public class AppletClassLoader extends AbstractAppletClassLoader<String> {
 
@@ -17,7 +25,40 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
         // Step 1: Load the applet source code and cache it (if enabled)
         List<FileResource> loadedResources = loadAppletFromURL(parameters);
 
+        // Lets load all resources
+        for (FileResource resource : loadedResources) {
+            try {
+                switch (resource.getResourceType()) {
+                    /// Jar file to be loaded
+                    case JAR_FILE: {
+                        loadJar(resource.getFile());
+                        break;
+                    }
+                    case UNKNOWN: {
+                        throw new OPLauncherException(String.format("Unknown resource type: [%s]", resource.getFile().getName()), CLASSPATH_LOAD_ERROR);
+                    }
+                }
+            } catch (IOException e) {
+                throw new OPLauncherException(String.format("Failed to load the resource: [%s]",
+                                              resource.getFile().getName()), e, CLASSPATH_LOAD_ERROR);
+            }
+        }
+
         return "";
+    }
+
+    static public void main(String[] args) {
+        try {
+            AppletClassLoader appletClassLoader = new AppletClassLoader();
+            appletClassLoader.loadAppletFromURL(Arrays.asList("load_applet",
+                    "https://www.cs.fsu.edu/~jtbauer/cis3931/tutorial/applet/overview",
+                    "codebase=example",
+                    "Simple.class"));
+            appletClassLoader.findClass("Simple");
+        }
+        catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
     }
 
     // class properties

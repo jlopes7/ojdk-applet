@@ -4,5 +4,5 @@ import java.util.List;
 
 public interface IAppletClassLoader<T> {
 
-    public String loadApplet(List<T> parameters);
+    public String processAppletC2A(List<T> parameters);
 }

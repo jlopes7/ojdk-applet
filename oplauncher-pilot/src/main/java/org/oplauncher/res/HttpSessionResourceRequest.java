@@ -1,5 +1,7 @@
 package org.oplauncher.res;
 
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.oplauncher.ConfigurationHelper;
 import org.oplauncher.OPLauncherException;
@@ -12,6 +14,7 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.Map;
 
 import static org.oplauncher.ErrorCode.*;
@@ -51,16 +54,24 @@ public class HttpSessionResourceRequest implements IResourceRequest<FileResource
         for (Map.Entry<?, ?> entry : cookieParameters.entrySet()) {
             cookieHeader.append(entry.getKey()).append("=").append(entry.getValue()).append("; ");
         }
+        String cookieHeaderString = cookieHeader.toString().trim();
 
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpGet httpGet = new HttpGet(url.toString());
-            httpGet.addHeader("Cookie", cookieHeader.toString());
+            // If there are any cookies available
+            if (!cookieHeaderString.equals("")) {
+                httpGet.addHeader("Cookie", cookieHeaderString);
+            }
 
             try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
                 String cachePath = URLUtils.reverseUrlToPackageName(url);
                 File cacheHome = new File(ConfigurationHelper.getCacheHomeDirectory(), cachePath);
                 String resName = URLUtils.getResourceName(url, response);
-                String hashName = URLUtils.generateMD5FromFileName(resName);
+                String savedResName = ConfigurationHelper.getSavedResourceName(resName);
+                String fileExt = FilenameUtils.getExtension(savedResName);
+                String hexFileName = Hex.encodeHexString(savedResName.getBytes(Charset.defaultCharset()));
+                String hashName = Character.valueOf(fileExt.charAt(0)).toString().concat("_").concat(hexFileName);
+                //String hashName = URLUtils.generateMD5FromFileName(resName);
 
                 if (response.getCode() <= 304 && response.getCode() >= 200) { /// between [200, 305[ OK
                     InputStream inputStream = response.getEntity().getContent();
