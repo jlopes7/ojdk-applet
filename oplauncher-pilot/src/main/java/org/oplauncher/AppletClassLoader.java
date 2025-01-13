@@ -55,11 +55,17 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                     "https://www.cs.fsu.edu/~jtbauer/cis3931/tutorial/applet/overview",
                     "codebase=example",
                     "",
-                    "width=100;height=100",
+                    "width=500;height=100",
                     "Simple.class"));
-            Class<?> klass = appletClassLoader.findClass("Simple");
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+                    "https://www.w3.org/People/mimasa/test/object/java/clock",
+                    "applets",
+                    "",
+                    "width=81;height=120",
+                    "tz.class"));*/
+            /*Class<?> klass = appletClassLoader.findClass("Simple");
             System.out.printf("Class name: %s%n", klass.getCanonicalName());
-            Arrays.asList(klass.getDeclaredMethods()).forEach(System.out::println);
+            Arrays.asList(klass.getDeclaredMethods()).forEach(System.out::println);*/
         }
         catch (Exception e) {
             e.printStackTrace(System.err);

@@ -3,6 +3,7 @@ package org.oplauncher.runtime;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.swing.*;
 import java.applet.Applet;
 import java.applet.AppletContext;
 import java.applet.AudioClip;
@@ -19,9 +20,10 @@ import java.util.List;
 public class DefaultAppletContext implements AppletContext {
     private static final Logger LOGGER = LogManager.getLogger(DefaultAppletContext.class);
 
-    protected DefaultAppletContext() {
+    protected DefaultAppletContext(AppletController controller) {
         _applets = Collections.synchronizedList(new ArrayList<Applet>());
         _streamMap = Collections.synchronizedMap(new LinkedHashMap<>());
+        _controller = controller;
     }
 
     @Override
@@ -63,6 +65,7 @@ public class DefaultAppletContext implements AppletContext {
     @Override
     public void showStatus(String status) {
         LOGGER.info("Status given: [{}]", status);
+        SwingUtilities.invokeLater(() -> _controller.getAppletStatusBar().setText(status));
     }
 
     @Override
@@ -88,6 +91,7 @@ public class DefaultAppletContext implements AppletContext {
     }
 
     // class properties
-    private final List<Applet> _applets;
-    private final Map<String, InputStream> _streamMap;
+    private List<Applet> _applets;
+    private Map<String, InputStream> _streamMap;
+    private AppletController _controller;
 }

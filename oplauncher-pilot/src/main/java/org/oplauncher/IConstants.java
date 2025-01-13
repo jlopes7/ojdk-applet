@@ -25,4 +25,7 @@ public interface IConstants {
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";
+
+    static public final int APPLET_WIDTH_DEFAULT = 400;
+    static public final int APPLET_HEIGHT_DEFAULT = 300;
 }

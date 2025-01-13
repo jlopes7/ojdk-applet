@@ -9,6 +9,7 @@ public enum ErrorCode {
     UNSUPPORTED_OPCODE(7005),
     CLASSPATH_LOAD_ERROR(7006),
     UNSUPPORTED_APPLET_CONTEXT(7007),
+    APPLET_EXECUTION_ERROR(7008),
       ;
 
     private ErrorCode(int cd) {

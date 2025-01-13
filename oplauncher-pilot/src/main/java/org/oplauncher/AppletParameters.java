@@ -51,7 +51,7 @@ public class AppletParameters {
         LOCK.lock();
         try {
             String widthStr = _paramMap.get(APPLETPARAM_WIDTH);
-            return widthStr == null ? -1 : Integer.parseInt(widthStr);
+            return widthStr == null ? APPLET_WIDTH_DEFAULT : Integer.parseInt(widthStr);
         }
         finally {
             LOCK.unlock();
@@ -62,7 +62,17 @@ public class AppletParameters {
         LOCK.lock();
         try {
             String heightStr = _paramMap.get(APPLETPARAM_HEIGHT);
-            return heightStr == null ? -1 : Integer.parseInt(heightStr);
+            return heightStr == null ? APPLET_HEIGHT_DEFAULT : Integer.parseInt(heightStr);
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    public final String getCustomParameter(String name) {
+        LOCK.lock();
+        try {
+            return _paramMap.get(name);
         }
         finally {
             LOCK.unlock();

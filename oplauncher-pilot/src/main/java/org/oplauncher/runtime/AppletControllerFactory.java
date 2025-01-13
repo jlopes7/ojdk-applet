@@ -14,7 +14,8 @@ public class AppletControllerFactory {
     static public AppletController createAppletController(AppletClassLoader klassLoader) throws OPLauncherException {
         LOCK.lock();
         try {
-            AppletContext context = AppletContextFactory.newAppletContext(ConfigurationHelper.getAppletContextType());
+            AppletContext context = AppletContextFactory.newAppletContext(ConfigurationHelper.getAppletContextType(),
+                                                                          klassLoader.getAppletController());
             return new DefaultAppletController(klassLoader, context);
         }
         finally {

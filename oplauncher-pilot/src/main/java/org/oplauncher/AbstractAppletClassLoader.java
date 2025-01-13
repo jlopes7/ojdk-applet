@@ -6,6 +6,8 @@ import org.apache.logging.log4j.Logger;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.res.HttpSessionResourceRequest;
 import org.oplauncher.res.ResourceRequestFactory;
+import org.oplauncher.res.URLUtils;
+
 import static org.oplauncher.res.ResourceType.*;
 
 import java.io.File;
@@ -84,11 +86,12 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("(loadAppletFromURL) Loading applet archive [{}] from base URL: {}", archive, loadSourceBaseURLPath);
                 }
-                resources.add(_loadAppletFromURL(applTagDef, loadSourceBaseURLPath, loadResApplType, archive, cookies, session));
+                resources.add(_loadAppletFromURL(applTagDef, loadSourceBaseURLPath, loadResApplType,
+                                                 archive, cookies, session, false));
             }
 
             resources.add(_loadAppletFromURL(applTagDef, loadSourceBaseURLPath, loadResApplType,
-                                             loadSourceResURLPath, cookies, session));
+                                             loadSourceResURLPath, cookies, session, true));
 
             return resources;
         }
@@ -101,7 +104,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                                                   String loadResApplType,
                                                   String loadSourceResURLPath,
                                                   Map<String,String> cookies,
-                                                  HttpSessionResourceRequest session) throws OPLauncherException {
+                                                  HttpSessionResourceRequest session, boolean loadApplet) throws OPLauncherException {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Loading applet Base URL: [{}]", loadSourceBaseURLPath);
             LOGGER.debug("Loading applet resource URL: [{}]", loadSourceResURLPath);
@@ -116,10 +119,16 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
             if ( LOGGER.isDebugEnabled() ) {
                 LOGGER.debug("Applet tag definition: [{}}]", applTagDef.name());
             }
+            String codeBase = sb.toString();
 
-            URL loadSourceBaseURL = new URL(sb.append(loadSourceResURLPath).toString());
+            URL loadSourceBaseURL = new URL(codeBase.concat(loadSourceResURLPath));
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Loading applet from URL [{}}]", loadSourceBaseURL);
+            }
+            if (loadApplet) {
+                _appletDocumentBase = loadSourceBaseURL;
+                _appletCodeBase = new URL(codeBase);
+                _appletClassName = URLUtils.getFileNameFromURL(loadSourceBaseURL);
             }
 
             /// TODO: Missing the implementation of the JARs Applet parameter to download multiple jar deps
@@ -192,6 +201,16 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         return Files.readAllBytes(classPath);
     }
 
+    public URL getAppletDocumentBase() {
+        return _appletDocumentBase;
+    }
+    public URL getAppletCodeBase() {
+        return _appletCodeBase;
+    }
+    public String getAppletClassName() {
+        return _appletClassName;
+    }
+
     private void addFileResource(final String klassName, FileResource resource) {
         LOCK.lock();
         try {
@@ -211,7 +230,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         }
     }
 
-    protected AppletParameters getAppletParameters() {
+    public AppletParameters getAppletParameters() {
         return _appletParameters;
     }
 
@@ -220,4 +239,8 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
     // class properties
     private Map<String, FileResource> _fileMap;
     private AppletParameters _appletParameters;
+
+    private URL _appletDocumentBase;
+    private URL _appletCodeBase;
+    private String _appletClassName;
 }
