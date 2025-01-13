@@ -2,9 +2,7 @@ package org.oplauncher;
 
 import org.apache.commons.io.FilenameUtils;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static java.util.regex.Pattern.quote;
 import static org.oplauncher.IConstants.*;
@@ -13,8 +11,9 @@ public class CommunicationParameterParser {
     private static final int IDX_OPCODE  = 0x00;
     private static final int IDX_BASEURL = 0x01;
     private static final int IDX_APPLTTAG = 0x02;
-    private static final int IDX_APPLTPARAMS = 0x03;
-    private static final int IDX_RESURL  = 0x04;
+    private static final int IDX_APPLTJARS = 0x03;
+    private static final int IDX_APPLTPARAMS = 0x04;
+    private static final int IDX_RESURL  = 0x05;
 
     public enum AppletTagDef {
         CODEBASE, ARCHIVES, UNKNOWN
@@ -61,6 +60,17 @@ public class CommunicationParameterParser {
         }
 
         throw new RuntimeException(String.format("No Base URL found for params: %s", params));
+    }
+
+    static protected <T>List<String> resolveArchives(List<T> params) {
+        String val;
+        List<String> archives = new LinkedList<>();
+        if ( params!=null && (val = paramValue(params, IDX_APPLTJARS)) != null && !val.trim().equals("") ) {
+            String archiveParts[] = val.split(quote(","));
+            Arrays.asList(archiveParts).stream().map(String::trim).forEach(archives::add);
+        }
+
+        return archives;
     }
 
     static public <T>AppletParameters resolveAppletParameters(List<T> params) {

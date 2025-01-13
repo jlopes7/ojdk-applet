@@ -1,6 +1,8 @@
 package org.oplauncher;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.res.HttpSessionResourceRequest;
 import org.oplauncher.res.ResourceRequestFactory;
@@ -21,6 +23,11 @@ import java.util.jar.JarFile;
 
 public abstract class AbstractAppletClassLoader<T> extends ClassLoader implements IAppletClassLoader<T> {
     static private final Lock LOCK = new ReentrantLock();
+    static private final Logger LOGGER = LogManager.getLogger(AbstractAppletClassLoader.class);
+    static {
+        ///  Logger initialization
+        ConfigurationHelper.intializeLog();
+    }
 
     protected AbstractAppletClassLoader(ClassLoader parent) {
         super(parent);
@@ -37,7 +44,9 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
             ///  switch the process based on the opcode given as parameter
             switch (OpCode.parse(opcode)) {
                 ///  Load all operations as needed
-                case LOAD_APPLET: return processAppletC2A(parameters);
+                case LOAD_APPLET: {
+                    return processAppletC2A(parameters);
+                }
                 default:
                     throw new OPLauncherException(String.format("Unknown or unsupported opcode: [%s]", opcode), ErrorCode.UNSUPPORTED_OPCODE);
             }
@@ -53,37 +62,81 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
     }
 
     protected List<FileResource> loadAppletFromURL(List<T> parameters) throws OPLauncherException {
-        HttpSessionResourceRequest session = ResourceRequestFactory.getResourceRequest(HTTP_SESSION_REQUEST);
+        LOCK.lock();
+        try {
+            HttpSessionResourceRequest session = ResourceRequestFactory.getResourceRequest(HTTP_SESSION_REQUEST);
 
-        CommunicationParameterParser.AppletTagDef applTagDef = CommunicationParameterParser.resolveAppletTagDef(parameters);
-        String loadSourceBaseURLPath = CommunicationParameterParser.resolveBaseUrl(parameters);
-        String loadResApplType = CommunicationParameterParser.resolveAppletTag(parameters, applTagDef);
-        String loadSourceResURLPath  = CommunicationParameterParser.resolveLoadResourceURL(parameters);
+            List<FileResource> resources = new ArrayList<>();
 
-        ///  Load all applet parameters and save it to the base classloader to be access by the Applet Context
-        ///  initialization at a later time
-        _appletParameters = CommunicationParameterParser.resolveAppletParameters(parameters);
+            CommunicationParameterParser.AppletTagDef applTagDef = CommunicationParameterParser.resolveAppletTagDef(parameters);
+            String loadSourceBaseURLPath = CommunicationParameterParser.resolveBaseUrl(parameters);
+            String loadResApplType = CommunicationParameterParser.resolveAppletTag(parameters, applTagDef);
+            String loadSourceResURLPath = CommunicationParameterParser.resolveLoadResourceURL(parameters);
+            List<String> archives = CommunicationParameterParser.resolveArchives(parameters);
+            Map<String,String> cookies = CommunicationParameterParser.resolveCookies(parameters);
+
+            ///  Load all applet parameters and save it to the base classloader to be access by the Applet Context
+            ///  initialization at a later time
+            _appletParameters = CommunicationParameterParser.resolveAppletParameters(parameters);
+
+            // Load all the deps archives (JARS)
+            for (String archive : archives) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("(loadAppletFromURL) Loading applet archive [{}] from base URL: {}", archive, loadSourceBaseURLPath);
+                }
+                resources.add(_loadAppletFromURL(applTagDef, loadSourceBaseURLPath, loadResApplType, archive, cookies, session));
+            }
+
+            resources.add(_loadAppletFromURL(applTagDef, loadSourceBaseURLPath, loadResApplType,
+                                             loadSourceResURLPath, cookies, session));
+
+            return resources;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+    private FileResource _loadAppletFromURL(CommunicationParameterParser.AppletTagDef applTagDef,
+                                                  String loadSourceBaseURLPath,
+                                                  String loadResApplType,
+                                                  String loadSourceResURLPath,
+                                                  Map<String,String> cookies,
+                                                  HttpSessionResourceRequest session) throws OPLauncherException {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Loading applet Base URL: [{}]", loadSourceBaseURLPath);
+            LOGGER.debug("Loading applet resource URL: [{}]", loadSourceResURLPath);
+            LOGGER.debug("Loading applet resource applet type: [{}}]", loadResApplType);
+        }
 
         try {
+            List<FileResource> resourceList = new ArrayList<>();
             StringBuilder sb = new StringBuilder(loadSourceBaseURLPath);
             if ( !loadSourceBaseURLPath.endsWith("/") ) sb.append('/');
             if ( applTagDef == CommunicationParameterParser.AppletTagDef.CODEBASE ) sb.append(loadResApplType).append('/');
+            if ( LOGGER.isDebugEnabled() ) {
+                LOGGER.debug("Applet tag definition: [{}}]", applTagDef.name());
+            }
 
             URL loadSourceBaseURL = new URL(sb.append(loadSourceResURLPath).toString());
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Loading applet from URL [{}}]", loadSourceBaseURL);
+            }
 
+            /// TODO: Missing the implementation of the JARs Applet parameter to download multiple jar deps
             FileResource res = session.verifyCache(loadSourceBaseURL);
             if (res == null) {
-                res = session.getResource(loadSourceBaseURL, CommunicationParameterParser.resolveCookies(parameters));
+                res = session.getResource(loadSourceBaseURL, cookies);
             }
-
-            // Add the loaded file to the control map
-            addFileResource(loadSourceResURLPath, res);
 
             if (res != null) {
-                return new ArrayList<>(Arrays.asList(res));
-            }
+                // Add the loaded file to the control map
+                addFileResource(loadSourceResURLPath, res);
 
-            throw new OPLauncherException(String.format("Could not load the resource from the given URL: %s", loadSourceBaseURLPath), ErrorCode.FAILED_TO_DOWNLOAD_FILE);
+                return res;
+            }
+            else {
+                throw new OPLauncherException(String.format("Could not load the resource from the given URL: %s", loadSourceBaseURLPath), ErrorCode.FAILED_TO_DOWNLOAD_FILE);
+            }
         }
         catch (MalformedURLException mex) {
             throw new OPLauncherException(mex, ErrorCode.MALFORMED_URL);

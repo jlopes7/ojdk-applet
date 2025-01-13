@@ -1,6 +1,12 @@
 package org.oplauncher;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
+import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
+import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.oplauncher.res.FileResource;
 
 import java.io.File;
@@ -19,6 +25,7 @@ public class ConfigurationHelper {
     static public final Properties CONFIG = new Properties();
     static {
         try {
+            // 1st init step: Initialize/copy the oplauncher configuration file
             FileInputStream fis;
             File configFile = new File(getHomeDirectory(), CONFIG_FILENAME);
             if (!configFile.exists()) {
@@ -33,10 +40,71 @@ public class ConfigurationHelper {
             finally {
                 fis.close();
             }
+
+            // 2nd init step: Check to see if the oplauncher LOG4J exists in the home folder
+            // TODO: Deactivated for now, using the config details
+            /*File log4jfile = new File(getHomeDirectory(), CONFIG_LOG_FILENAME);
+            if (!log4jfile.exists()) {
+                InputStream is = ConfigurationHelper.class.getClassLoader().getResourceAsStream(CONFIG_LOG_FILENAME);
+                FileUtils.copyInputStreamToFile(is, log4jfile);
+            }*/
         }
         catch (Exception e) {
             e.printStackTrace(System.err);
         }
+    }
+
+    static public final void intializeLog() throws OPLauncherException {
+        if (ConfigurationHelper.isLoggingActive()) {
+            File log4jfile = new File(getHomeDirectory(), CONFIG_LOG_FILENAME);
+            if (!log4jfile.exists()) {
+                manualInitializeLog();
+            }
+            else {
+                xmlIntializeLog();
+            }
+        }
+    }
+
+    static private void xmlIntializeLog() throws OPLauncherException {
+        String logPattern = ConfigurationHelper.getLogFileRotatePattern();
+        File logFile = ConfigurationHelper.getLogConfigurationFile();
+        String logLevel = ConfigurationHelper.getLogLevel();
+
+        // Define the log system parameters
+        System.setProperty("log.filename", logFile.getAbsolutePath());
+        System.setProperty("log.filenamePattern", logPattern);
+        System.setProperty("log.level", logLevel);
+
+        // Reload the log4j config
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        // Set the configuration file
+        context.setConfigLocation(logFile.toURI());
+        context.reconfigure();
+    }
+    static private void manualInitializeLog() throws OPLauncherException {
+        String logFilePattern = getLogFileRotatePattern();
+        File logFile = getLogConfigurationFile();
+        String logLevel = getLogLevel();
+        String logPattern = getLogPattern();
+
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+
+        ConfigurationBuilder<BuiltConfiguration> builder = ConfigurationBuilderFactory.newConfigurationBuilder();
+
+        builder.add(builder.newAppender("FileAppender", "RollingFile")
+                .addAttribute("fileName", logFile.getAbsolutePath())
+                .addAttribute("filePattern", logFilePattern)
+                .add(builder.newLayout("PatternLayout").addAttribute("pattern", logPattern))
+                .addComponent(builder.newComponent("Policies")
+                        .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", getLogFileRotationSize()))))
+                .add(builder.newLogger("DynamicLogger", Level.toLevel(logLevel))
+                        .add(builder.newAppenderRef("FileAppender"))
+                        .addAttribute("additivity", false))
+                .add(builder.newRootLogger(Level.toLevel(logLevel))
+                        .add(builder.newAppenderRef("FileAppender")));
+
+        context.start(builder.build());
     }
 
     static public final boolean isCacheActive() {
@@ -47,13 +115,57 @@ public class ConfigurationHelper {
         return CONFIG.getProperty(prop) != null;
     }
 
-    static public final File getHomeDirectory() {
-        final String kCacheHome = ".oplauncher";
-        File homeDirectory;
-        if ( configPropAvailable(CONFIG_PROP_CONFIG_ROOT) ) {
-            homeDirectory = new File(CONFIG.getProperty(CONFIG_PROP_CONFIG_ROOT));
+    static public final String getLogPattern() {
+        return CONFIG.getProperty(CONFIG_PROP_LOGPATTERN, "%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n").trim();
+    }
+
+    static public final boolean isLoggingActive() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_LOGACTIVE, "true").trim());
+    }
+    static public final File getLogConfigurationFile() {
+        File logFile;
+        if ( configPropAvailable(CONFIG_PROP_LOGFILENAME) ) {
+            logFile = new File(CONFIG.getProperty(CONFIG_PROP_LOGFILENAME));
+            File logDir = logFile.getParentFile();
+
+            if (!logDir.exists()) {
+                try {
+                    FileUtils.forceMkdir(logDir);
+                }
+                catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
-        else homeDirectory = new File(System.getProperty("user.home"), kCacheHome);
+        else {
+            logFile = new File(getLogHomeDirectory(), CONFIG_LOG_DEF_RUNTIME_FILENAME);
+        }
+
+        return logFile;
+    }
+    static public final String getLogFileRotatePattern() {
+        if ( configPropAvailable(CONFIG_PROP_LOGFILEPATTERN) ) {
+            return CONFIG.getProperty(CONFIG_PROP_LOGFILEPATTERN).trim();
+        }
+        else {
+            return CONFIG_LOG_DEF_RUNTIME_PATNAME;
+        }
+    }
+
+    static public final String getLogLevel() {
+        return CONFIG.getProperty(CONFIG_PROP_LOGLEVEL, "INFO").trim();
+    }
+
+    static public final String getLogFileRotationSize() {
+        return CONFIG.getProperty(CONFIG_PROP_LOGRATATION_SZ, "2MB").trim();
+    }
+
+    static private File _getHomeDirectory(File base, final String propname, final String structDir) {
+        File homeDirectory;
+        if ( configPropAvailable(propname) ) {
+            homeDirectory = new File(CONFIG.getProperty(propname));
+        }
+        else homeDirectory = new File(base, structDir);
 
         if (!homeDirectory.exists()) {
             try {
@@ -65,6 +177,15 @@ public class ConfigurationHelper {
         }
 
         return homeDirectory;
+    }
+
+    static public final File getLogHomeDirectory() {
+        return _getHomeDirectory(getHomeDirectory(), CONFIG_PROP_LOGDIR, "logs");
+    }
+
+    static public final File getHomeDirectory() {
+        File userHomeDirectory = new File(System.getProperty("user.home"));
+        return _getHomeDirectory(userHomeDirectory, CONFIG_PROP_CONFIG_ROOT, ".oplauncher");
     }
 
     static public final String getSavedResourceName(String defval) {
@@ -101,23 +222,7 @@ public class ConfigurationHelper {
     }
 
     static public final File getCacheHomeDirectory() {
-        final String kCacheHome = "cache";
-        File cacheHomeDirectory;
-        if ( configPropAvailable(CONFIG_PROP_CACHE_FILEPATH) ) {
-            cacheHomeDirectory = new File(CONFIG.getProperty(CONFIG_PROP_CACHE_FILEPATH));
-        }
-        else cacheHomeDirectory = new File(getHomeDirectory(), kCacheHome);
-
-        if (!cacheHomeDirectory.exists()) {
-            try {
-                FileUtils.forceMkdir(cacheHomeDirectory);
-            }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        return cacheHomeDirectory;
+        return _getHomeDirectory(getHomeDirectory(), CONFIG_PROP_CACHE_FILEPATH, "cache");
     }
 
     static public String genRandomString(int size) {

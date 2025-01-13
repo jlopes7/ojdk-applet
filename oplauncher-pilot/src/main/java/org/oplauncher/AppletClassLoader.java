@@ -40,15 +40,18 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
             }
         }
 
+        /// TODO: Continue to load and execute the Applet class
+        
         return "";
     }
 
     static public void main(String[] args) {
         try {
             AppletClassLoader appletClassLoader = new AppletClassLoader();
-            appletClassLoader.loadAppletFromURL(Arrays.asList("load_applet",
+            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://www.cs.fsu.edu/~jtbauer/cis3931/tutorial/applet/overview",
                     "codebase=example",
+                    "",
                     "width=100;height=100",
                     "Simple.class"));
             Class<?> klass = appletClassLoader.findClass("Simple");
