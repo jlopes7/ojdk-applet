@@ -21,6 +21,7 @@ public interface IConstants {
     static public final String CONFIG_PROP_LOGLEVEL = "oplauncher.log.level";
     static public final String CONFIG_PROP_LOGPATTERN = "oplauncher.log.logpattern";
     static public final String CONFIG_PROP_LOGRATATION_SZ = "oplauncher.log.rotationsize";
+    static public final String CONFIG_PROP_APPLETCONTEXT = "oplauncher.runtime.applet.context";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";

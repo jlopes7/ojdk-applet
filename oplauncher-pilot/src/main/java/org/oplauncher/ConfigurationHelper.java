@@ -8,6 +8,7 @@ import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
 import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.oplauncher.res.FileResource;
+import org.oplauncher.runtime.AppletContextType;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -158,6 +159,12 @@ public class ConfigurationHelper {
 
     static public final String getLogFileRotationSize() {
         return CONFIG.getProperty(CONFIG_PROP_LOGRATATION_SZ, "2MB").trim();
+    }
+
+    static public final AppletContextType getAppletContextType() {
+        String appletContextType = CONFIG.getProperty(CONFIG_PROP_APPLETCONTEXT, "default").trim();
+
+        return AppletContextType.parse(appletContextType);
     }
 
     static private File _getHomeDirectory(File base, final String propname, final String structDir) {

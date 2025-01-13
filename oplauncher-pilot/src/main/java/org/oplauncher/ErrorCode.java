@@ -8,6 +8,7 @@ public enum ErrorCode {
     FAILED_TO_DOWNLOAD_FILE(7004),
     UNSUPPORTED_OPCODE(7005),
     CLASSPATH_LOAD_ERROR(7006),
+    UNSUPPORTED_APPLET_CONTEXT(7007),
       ;
 
     private ErrorCode(int cd) {

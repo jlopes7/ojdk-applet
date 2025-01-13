@@ -1,6 +1,8 @@
 package org.oplauncher;
 
 import org.oplauncher.res.FileResource;
+import org.oplauncher.runtime.AppletController;
+import org.oplauncher.runtime.AppletControllerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -13,7 +15,7 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     public AppletClassLoader() {
         super(AppletClassLoader.getSystemClassLoader());
 
-        _appletController = new AppletController(this);
+        _appletController = AppletControllerFactory.createAppletController(this);
     }
 
     @Override
@@ -40,8 +42,9 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
             }
         }
 
-        /// TODO: Continue to load and execute the Applet class
-        
+        /// Load the Applet class !!!
+        getAppletController().execute(OpCode.LOAD_APPLET);
+
         return "";
     }
 
@@ -61,6 +64,10 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
         catch (Exception e) {
             e.printStackTrace(System.err);
         }
+    }
+
+    public AppletController getAppletController() {
+        return _appletController;
     }
 
     // class properties
