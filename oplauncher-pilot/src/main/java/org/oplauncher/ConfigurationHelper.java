@@ -1,6 +1,8 @@
 package org.oplauncher;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -13,6 +15,7 @@ import org.oplauncher.runtime.AppletContextType;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
@@ -116,8 +119,20 @@ public class ConfigurationHelper {
         return CONFIG.getProperty(prop) != null;
     }
 
+    static public ArchiveClassLoaderType getArchiveClassLoaderType() {
+        return ArchiveClassLoaderType.parse(CONFIG.getProperty(CONFIG_PROP_ARCHIEVE_CLASSLOADER));
+    }
+
     static public final String getLogPattern() {
         return CONFIG.getProperty(CONFIG_PROP_LOGPATTERN, "%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n").trim();
+    }
+
+    static public final String computeFileHashName(String resName) {
+        String fileExt = FilenameUtils.getExtension(resName);
+        String hexFileName = Hex.encodeHexString(resName.getBytes(Charset.defaultCharset()));
+        String hashName = Character.valueOf(fileExt.charAt(0)).toString().concat("_").concat(hexFileName);
+
+        return hashName;
     }
 
     static public final boolean isLoggingActive() {

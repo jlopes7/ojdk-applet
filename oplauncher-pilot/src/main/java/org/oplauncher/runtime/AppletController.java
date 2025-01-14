@@ -1,16 +1,21 @@
 package org.oplauncher.runtime;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.oplauncher.AppletClassLoader;
 import org.oplauncher.OPLauncherException;
 import org.oplauncher.OpCode;
 
 import javax.swing.*;
+import java.applet.Applet;
 import java.applet.AppletContext;
+import java.awt.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class AppletController {
     static private final Lock LOCK = new ReentrantLock();
+    static private final Logger LOGGER = LogManager.getLogger(AppletController.class);
 
     protected AppletController(AppletClassLoader clzloader, AppletContext context) throws OPLauncherException {
         _classLoader = clzloader;
@@ -27,6 +32,42 @@ public abstract class AppletController {
                 throw new OPLauncherException(String.format("Unsupported operational code: [%s]", opcode.name()));
             }
         }
+    }
+
+    protected String renderApplet(Applet applet) throws Exception {
+        LOCK.lock();
+        try {
+            defineAppletFrame("OPLauncher Applet Window").defineStatusBarLabel("Ready!");
+            getAppletFrame().setSize(getAppletClassLoader().getAppletParameters().getWidth(), getAppletClassLoader().getAppletParameters().getHeight());
+            getAppletFrame().setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            getAppletFrame().add(applet);
+
+            getAppletStatusBar().setBorder(BorderFactory.createEtchedBorder());
+
+            // Add the status bar to the bottom
+            getAppletFrame().add(getAppletStatusBar(), BorderLayout.SOUTH);
+            // Center the frame on the screen
+            getAppletFrame().setLocationRelativeTo(null);
+
+            getAppletClassLoader().getAppletController().activateApplet(); /// Mark the applet as active
+            LOGGER.info("Calling applet STARTED");
+            applet.start();
+
+            // SHOW THE APPLET !!!
+            getAppletFrame().setVisible(true);
+
+            LOGGER.info("Applet successfully loaded !");
+
+            return "";
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+    protected String parseClassName(final String klass) {
+        return klass.replace("/", ".")
+                .replace("\\", ".")
+                .replace(".class", "");
     }
 
     abstract protected String loadAppletClass() throws OPLauncherException;
@@ -72,11 +113,11 @@ public abstract class AppletController {
         }
     }
 
-    protected AppletController setAppletFrame(String title) {
+    protected AppletController defineAppletFrame(String title) {
         _appletFrame = new JFrame(title);
         return this;
     }
-    protected AppletController setStatusBarLabel(String text) {
+    protected AppletController defineStatusBarLabel(String text) {
         _appletStatusBarLabel = new JLabel(text);
         return this;
     }

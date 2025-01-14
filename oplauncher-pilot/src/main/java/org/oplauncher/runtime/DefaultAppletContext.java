@@ -21,7 +21,6 @@ public class DefaultAppletContext implements AppletContext {
     private static final Logger LOGGER = LogManager.getLogger(DefaultAppletContext.class);
 
     protected DefaultAppletContext(AppletController controller) {
-        _applets = Collections.synchronizedList(new ArrayList<Applet>());
         _streamMap = Collections.synchronizedMap(new LinkedHashMap<>());
         _controller = controller;
     }
@@ -39,17 +38,12 @@ public class DefaultAppletContext implements AppletContext {
 
     @Override
     public Applet getApplet(String name) {
-        for (Applet applet : _applets) {
-            if (name!=null && name.trim().equals(applet.getName())) {
-                return applet;
-            }
-        }
-        return null;
+        return AppletRegistry.get(name);
     }
 
     @Override
     public Enumeration<Applet> getApplets() {
-        return new Vector<>(_applets).elements();
+        return AppletRegistry.getApplets();
     }
 
     @Override
@@ -91,7 +85,6 @@ public class DefaultAppletContext implements AppletContext {
     }
 
     // class properties
-    private List<Applet> _applets;
     private Map<String, InputStream> _streamMap;
     private AppletController _controller;
 }

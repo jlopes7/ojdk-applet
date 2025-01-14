@@ -51,18 +51,24 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     static public void main(String[] args) {
         try {
             AppletClassLoader appletClassLoader = new AppletClassLoader();
-            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://www.cs.fsu.edu/~jtbauer/cis3931/tutorial/applet/overview",
                     "codebase=example",
-                    "",
+                    "", "",
                     "width=500;height=100",
-                    "Simple.class"));
+                    "Simple.class"));*/
             /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
-                    "https://www.w3.org/People/mimasa/test/object/java/clock",
-                    "applets",
+                    "https://www.math.uh.edu/mathonline/JavaTest",
                     "",
-                    "width=81;height=120",
-                    "tz.class"));*/
+                    "HappyApplet.jar", "TestApplet",
+                    "width=100;height=100",
+                    "javadetectapplet.JavaDetectApplet.class"));*/
+            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+                    "https://www.caff.de/applettest",
+                    "",
+                    "dxf-applet-signed.jar", "",
+                    "width=250;height=40",
+                    "de.caff.dxf.applet.DxfApplet"));
             /*Class<?> klass = appletClassLoader.findClass("Simple");
             System.out.printf("Class name: %s%n", klass.getCanonicalName());
             Arrays.asList(klass.getDeclaredMethods()).forEach(System.out::println);*/

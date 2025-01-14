@@ -97,9 +97,9 @@ public class HttpSessionResourceRequest implements IResourceRequest<FileResource
                 String resName = URLUtils.getResourceName(url, response);
                 //String fileName = URLUtils.getFileNameFromURL(url);
                 String savedResName = ConfigurationHelper.getSavedResourceName(resName);
-                String fileExt = FilenameUtils.getExtension(savedResName);
-                String hexFileName = Hex.encodeHexString(resName.getBytes(Charset.defaultCharset()));
-                String hashName = Character.valueOf(fileExt.charAt(0)).toString().concat("_").concat(hexFileName);
+                String fileExt = FilenameUtils.getExtension(resName);
+                String hashName = ConfigurationHelper.computeFileHashName(resName);
+                //Character.valueOf(fileExt.charAt(0)).toString().concat("_").concat(hexFileName);
                 //String hashName = URLUtils.generateMD5FromFileName(resName);
 
                 if (LOGGER.isDebugEnabled()) {

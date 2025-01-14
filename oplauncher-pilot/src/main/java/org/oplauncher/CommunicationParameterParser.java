@@ -8,12 +8,13 @@ import static java.util.regex.Pattern.quote;
 import static org.oplauncher.IConstants.*;
 
 public class CommunicationParameterParser {
-    private static final int IDX_OPCODE  = 0x00;
-    private static final int IDX_BASEURL = 0x01;
-    private static final int IDX_APPLTTAG = 0x02;
-    private static final int IDX_APPLTJARS = 0x03;
-    private static final int IDX_APPLTPARAMS = 0x04;
-    private static final int IDX_RESURL  = 0x05;
+    private static final int IDX_OPCODE         = 0x00;
+    private static final int IDX_BASEURL        = 0x01;
+    private static final int IDX_APPLTTAG       = 0x02;
+    private static final int IDX_APPLTJARS      = 0x03;
+    private static final int IDX_APPLTNAME      = 0x04;
+    private static final int IDX_APPLTPARAMS    = 0x05;
+    private static final int IDX_RESURL         = 0x06;
 
     public enum AppletTagDef {
         CODEBASE, ARCHIVES, UNKNOWN
@@ -45,6 +46,16 @@ public class CommunicationParameterParser {
         }
 
         throw new RuntimeException(String.format("No opcode found for params: %s", params));
+    }
+
+    static protected <T>String resolveAppletName(List<T> params) {
+        String val;
+        if ( params!=null && (val = paramValue(params, IDX_APPLTNAME)) != null && !val.trim().isEmpty() ) {
+            return val;
+        }
+
+        ///  Random Applet name...
+        return ConfigurationHelper.genRandomString(16);
     }
 
     static protected <T>String resolveBaseUrl(List<T> params) {
@@ -124,6 +135,21 @@ public class CommunicationParameterParser {
         throw new RuntimeException(String.format("No applet tag definition found for params: %s", params));
     }
 
+    static protected <T>String resolveAppletClass(List<T> params) {
+        String val;
+        if ( params!=null && (val = paramValue(params, IDX_RESURL)) != null ) {
+            String opcode = resolveOpCode(params);
+            if (val != null && OpCode.parse(opcode) == OpCode.LOAD_APPLET) {
+                return val;
+            }
+            else if (val != null) {
+                throw new RuntimeException(String.format("Incorrect operation provided: %s. Expected op: load_applet", opcode));
+            }
+        }
+
+        throw new RuntimeException(String.format("No Java Class found for params: %s", params));
+    }
+
     static protected <T>String resolveLoadResourceURL(List<T> params) {
         String val;
         if ( params!=null && (val = paramValue(params, IDX_RESURL)) != null ) {
@@ -131,7 +157,7 @@ public class CommunicationParameterParser {
             if ( val != null && OpCode.parse(opcode) == OpCode.LOAD_APPLET ) {
                 String ext = FilenameUtils.getExtension(val);
 
-                /// Save the resource name for later usage
+                /// Save the resource name for later usage - TODO, there are better ways for doing this
                 ConfigurationHelper.CONFIG.setProperty(CONFIG_PROP_RESOURCENAME, val);
 
                 if ( ext != null && ext.trim().equalsIgnoreCase("class") ) {

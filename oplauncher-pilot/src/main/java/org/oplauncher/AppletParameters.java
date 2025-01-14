@@ -62,7 +62,7 @@ public class AppletParameters {
         LOCK.lock();
         try {
             String heightStr = _paramMap.get(APPLETPARAM_HEIGHT);
-            return heightStr == null ? APPLET_HEIGHT_DEFAULT : Integer.parseInt(heightStr);
+            return heightStr == null ? APPLET_HEIGHT_DEFAULT : Float.valueOf(Float.parseFloat(heightStr) * HEIGHT_RATE_FACTOR).intValue();
         }
         finally {
             LOCK.unlock();

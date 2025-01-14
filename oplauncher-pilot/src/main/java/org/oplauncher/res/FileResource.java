@@ -20,7 +20,7 @@ public class FileResource {
         UNKNOWN
     }
 
-    protected FileResource(File maskedFile) {
+    public FileResource(File maskedFile) {
         String filename = maskedFile.getName();
 
         _maskedFile = maskedFile;
@@ -126,7 +126,7 @@ public class FileResource {
         return _maskedFile;
     }
 
-    private File getUnmaskedFile() {
+    public File getUnmaskedFile() {
         return _file;
     }
     public File getFile() {
