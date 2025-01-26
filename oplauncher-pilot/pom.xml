@@ -75,6 +75,9 @@
                 <includes>
                     <include>**/*.properties</include>
                     <include>**/*.xml</include>
+                    <include>**/*.png</include>
+                    <include>**/VERSION</include>
+                    <include>**/LICENSE</include>
                 </includes>
                 <excludes>
                     <exclude>**/*.tmp</exclude>
