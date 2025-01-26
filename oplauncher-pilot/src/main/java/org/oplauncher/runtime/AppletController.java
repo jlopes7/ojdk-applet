@@ -1,17 +1,22 @@
 package org.oplauncher.runtime;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.oplauncher.AppletClassLoader;
-import org.oplauncher.OPLauncherException;
-import org.oplauncher.OpCode;
+import org.oplauncher.*;
 
 import javax.swing.*;
 import java.applet.Applet;
 import java.applet.AppletContext;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static org.oplauncher.IConstants.*;
 
 public abstract class AppletController {
     static private final Lock LOCK = new ReentrantLock();
@@ -34,27 +39,46 @@ public abstract class AppletController {
         }
     }
 
+    protected AppletController configureApplet(Applet applet) throws OPLauncherException {
+        applet.setName(getAppletClassLoader().getAppletName());
+        //applet.setLayout(new BorderLayout());
+        // TODO: Add additional configuration to the panel
+        return this;
+    }
+
     protected String renderApplet(Applet applet) throws Exception {
         LOCK.lock();
         try {
-            defineAppletFrame("OPLauncher Applet Window").defineStatusBarLabel("Ready!");
+            getAppletFrame().setLayout(new BorderLayout(5, 5));
             getAppletFrame().setSize(getAppletClassLoader().getAppletParameters().getWidth(), getAppletClassLoader().getAppletParameters().getHeight());
             getAppletFrame().setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            getAppletFrame().add(applet);
+            getAppletFrame().setBackground(Color.white);
+            getAppletFrame().setAlwaysOnTop(ConfigurationHelper.isFrameAlwaysOnTop());
+            getAppletFrame().setResizable(ConfigurationHelper.isFrameResizable());
 
             getAppletStatusBar().setBorder(BorderFactory.createEtchedBorder());
-
+            //getAppletStatusBar().setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
+            getAppletStatusBar().add(getAppletStatusBarLabel(), BorderLayout.WEST);
+            getAppletStatusBar().add(getButtonPanel(), BorderLayout.EAST);
             // Add the status bar to the bottom
             getAppletFrame().add(getAppletStatusBar(), BorderLayout.SOUTH);
-            // Center the frame on the screen
-            getAppletFrame().setLocationRelativeTo(null);
+
+            getAppletFrame().add(applet, BorderLayout.CENTER);
 
             getAppletClassLoader().getAppletController().activateApplet(); /// Mark the applet as active
             LOGGER.info("Calling applet STARTED");
             applet.start();
 
             // SHOW THE APPLET !!!
-            getAppletFrame().setVisible(true);
+            applet.validate();
+            //applet.repaint();
+
+            // Center the frame on the screen and pack
+            getAppletFrame().setLocationRelativeTo(null);
+            getAppletFrame().pack();
+            // Add events and shows the applet
+            addEvents(applet).getAppletFrame().setVisible(true);
+            getAppletFrame().toFront();
 
             LOGGER.info("Applet successfully loaded !");
 
@@ -68,6 +92,26 @@ public abstract class AppletController {
         return klass.replace("/", ".")
                 .replace("\\", ".")
                 .replace(".class", "");
+    }
+
+    private AppletController addEvents(final Applet applet) {
+        // Handle window closing
+        getAppletFrame().addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // Cleanly stop applet
+                LOGGER.warn("Stopping the applet: {}", applet.getName());
+                applet.stop();
+                LOGGER.warn("Destroying the applet: {}", applet.getName());
+                applet.destroy();
+
+                getAppletFrame().dispose();
+                // Exit application
+                System.exit(0);
+            }
+        });
+
+        return this;
     }
 
     abstract protected String loadAppletClass() throws OPLauncherException;
@@ -113,20 +157,101 @@ public abstract class AppletController {
         }
     }
 
+    private byte[] _loadReloadIconBytes(String resName) {
+        try (InputStream is = getClass().getResourceAsStream(resName)) {
+            if (is != null) {
+                return IOUtils.toByteArray(is);
+            }
+
+            throw new OPLauncherException("Failed to load refresh button icon", ErrorCode.FAILED_TO_LOAD_RESOURCE);
+        }
+        catch (IOException e) {
+            throw new OPLauncherException("Failed to load refresh button icon", e, ErrorCode.FAILED_TO_LOAD_RESOURCE);
+        }
+    }
+
     protected AppletController defineAppletFrame(String title) {
         _appletFrame = new JFrame(title);
         return this;
     }
-    protected AppletController defineStatusBarLabel(String text) {
+    protected AppletController defineStatusBar(String text, Applet applet) {
         _appletStatusBarLabel = new JLabel(text);
+        _statusBarPanel = new JPanel(new BorderLayout());
+        _buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+
+        // Image processing
+        ImageIcon originalRefreshIcon = new ImageIcon(_loadReloadIconBytes("/refresh-button.png"));
+        ImageIcon originalInfoIcon    = new ImageIcon(_loadReloadIconBytes("/info-button.png"));
+        Image iconRefresh = originalRefreshIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
+        Image iconInfo    = originalInfoIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
+
+        _appletReloadButton = new JButton(new ImageIcon(iconRefresh)); // Add your reload icon path
+        _appletReloadButton.setToolTipText("Reload Applet Code");
+        _appletReloadButton.addActionListener(evt -> {
+            LOGGER.info("Reloading the applet... {}", applet.getName());
+            try {
+                ///  RELOADS THE APPLET !!!
+                applet.stop();
+                applet.destroy();
+                applet.init();
+                applet.start();
+
+                LOGGER.info("({}) Applet reloaded successfully!", applet.getName());
+            }
+            catch (Exception e) {
+                LOGGER.error("Error while reloading applet", e);
+                JOptionPane.showMessageDialog(getAppletFrame(), "Failed to reload the applet!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        _appletInfoButton = new JButton(new ImageIcon(iconInfo)); // Add your reload icon path
+        _appletInfoButton.setToolTipText("OJDK Launcher Information");
+        _appletInfoButton.addActionListener(evt -> {
+            LOGGER.info("Displaying application info.");
+            JOptionPane.showMessageDialog(getAppletFrame(),
+                    _getInfoText(),
+                    "About OPLauncher",
+                    JOptionPane.INFORMATION_MESSAGE);
+        });
+
+        getButtonPanel().add(getAppletInfoButton());
+        getButtonPanel().add(getAppletReloadButton());
+
         return this;
+    }
+    private String _getInfoText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("OPLauncher ").append(ConfigurationHelper.getOPLauncherVersion()).append(DEFAULT_EOL).append(DEFAULT_EOL)
+                .append("Developed by Jo^o Gonzalez at Azul Systems").append(REGISTERED_CHAR).append(DEFAULT_EOL)
+                .append("This application allows applets to be launched from modern browsers and up-to-dated Java Runtimes.")
+                    .append(DEFAULT_EOL)
+                    .append(DEFAULT_EOL)
+                .append("Applet running configuration:").append(DEFAULT_EOL)
+                .append("- Java Runtime: ").append(System.getProperty("java.vm.name")).append(DEFAULT_EOL)
+                //.append("- Java Vendor Version: ").append(System.getProperty("java.vendor.version")).append(DEFAULT_EOL)
+                .append("- Java Runtime Version: ").append(System.getProperty("java.runtime.version")).append(DEFAULT_EOL)
+                .append("- Java Vendor: ").append(System.getProperty("java.vendor")).append(DEFAULT_EOL);
+
+        return sb.toString();
     }
 
     public JFrame getAppletFrame() {
         return _appletFrame;
     }
-    public JLabel getAppletStatusBar() {
+    public JLabel getAppletStatusBarLabel() {
         return _appletStatusBarLabel;
+    }
+    public JPanel getAppletStatusBar() {
+        return _statusBarPanel;
+    }
+    public JButton getAppletReloadButton() {
+        return _appletReloadButton;
+    }
+    public JButton getAppletInfoButton() {
+        return _appletInfoButton;
+    }
+    public JPanel getButtonPanel() {
+        return _buttonPanel;
     }
 
     // class properties
@@ -138,4 +263,8 @@ public abstract class AppletController {
     // class properties
     private JFrame _appletFrame;
     private JLabel _appletStatusBarLabel;
+    private JPanel _statusBarPanel;
+    private JPanel _buttonPanel;
+    private JButton _appletReloadButton;
+    private JButton _appletInfoButton;
 }

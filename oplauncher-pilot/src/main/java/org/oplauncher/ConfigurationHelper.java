@@ -3,8 +3,10 @@ package org.oplauncher;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
@@ -27,6 +29,8 @@ public class ConfigurationHelper {
     static private final Lock LOCK = new ReentrantLock();
     static private final Map<String, FileResource> TEMP_CPS = new LinkedHashMap<>();
     static public final Properties CONFIG = new Properties();
+    static public final Logger LOGGER = LogManager.getLogger(ConfigurationHelper.class);
+    static private String _oplauncherVersion = null;
     static {
         try {
             // 1st init step: Initialize/copy the oplauncher configuration file
@@ -67,6 +71,31 @@ public class ConfigurationHelper {
             else {
                 xmlIntializeLog();
             }
+        }
+    }
+
+    static public final String getOPLauncherVersion() {
+        LOCK.lock();
+        try {
+            if (_oplauncherVersion == null) {
+                try (InputStream is = ConfigurationHelper.class.getResourceAsStream("/VERSION")) {
+                    if (is == null) {
+                        throw new NullPointerException("Could not find the VERSION file");
+                    }
+
+                    String version = IOUtils.toString(is, Charset.defaultCharset());
+                    _oplauncherVersion = version;
+                }
+                catch (Exception e) {
+                    LOGGER.error("Failed to load the OPLauncher version", e);
+                    return "";
+                }
+            }
+
+            return _oplauncherVersion;
+        }
+        finally {
+            LOCK.unlock();
         }
     }
 
@@ -174,6 +203,13 @@ public class ConfigurationHelper {
 
     static public final String getLogFileRotationSize() {
         return CONFIG.getProperty(CONFIG_PROP_LOGRATATION_SZ, "2MB").trim();
+    }
+
+    static public final boolean isFrameAlwaysOnTop() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_ALWAYSONTOP, "false").trim());
+    }
+    static public final boolean isFrameResizable() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_RESIZEFLAG, "true").trim());
     }
 
     static public final AppletContextType getAppletContextType() {

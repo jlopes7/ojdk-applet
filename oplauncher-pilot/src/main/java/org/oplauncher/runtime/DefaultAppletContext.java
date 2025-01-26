@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.*;
-import java.util.List;
 
 /**
  * Very simple implementation of an Applet context class
@@ -59,7 +58,7 @@ public class DefaultAppletContext implements AppletContext {
     @Override
     public void showStatus(String status) {
         LOGGER.info("Status given: [{}]", status);
-        SwingUtilities.invokeLater(() -> _controller.getAppletStatusBar().setText(status));
+        SwingUtilities.invokeLater(() -> _controller.getAppletStatusBarLabel().setText(status));
     }
 
     @Override

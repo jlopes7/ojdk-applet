@@ -63,12 +63,36 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                     "HappyApplet.jar", "TestApplet",
                     "width=100;height=100",
                     "javadetectapplet.JavaDetectApplet.class"));*/
-            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://www.caff.de/applettest",
                     "",
-                    "dxf-applet-signed.jar", "",
-                    "width=250;height=40",
-                    "de.caff.dxf.applet.DxfApplet"));
+                    "dxf-applet-signed.jar", "DXF Applet",
+                    "width=1024;height=400",
+                    "de.caff.dxf.applet.DxfApplet"));*/
+            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+                    "https://imagej.net/ij",
+                    "",
+                    "ij.jar", "ImageJ Applet",
+                    "width=300;height=100",
+                    "ij.ImageJApplet"));
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+                    "https://web.mit.edu/java_v1.0.2/www/tutorial/java/threads/",
+                    "codebase=example",
+                    "", "MiT Time/Date Applet",
+                    "width=60;height=10",
+                    "Clock.class"));*/
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet", //NOT WORKING!
+                    "https://www.physics.purdue.edu/class/applets/phe/",
+                    "codebase=../jarph",
+                    "Kepler1.jar", "Box Modes Simulation",
+                    "language=English;width=700;height=360",
+                    "Kepler1.class"));*/
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+                    "https://www.physics.purdue.edu/class/applets/phe/",
+                    "codebase=../jarph",
+                    "MFStab.jar", "Magnetic field of a bar magnet",
+                    "language=English;width=600;height=420",
+                    "MFStab.class"));*/
             /*Class<?> klass = appletClassLoader.findClass("Simple");
             System.out.printf("Class name: %s%n", klass.getCanonicalName());
             Arrays.asList(klass.getDeclaredMethods()).forEach(System.out::println);*/

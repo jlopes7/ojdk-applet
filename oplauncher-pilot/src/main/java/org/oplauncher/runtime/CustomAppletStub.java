@@ -38,7 +38,7 @@ public class CustomAppletStub implements AppletStub {
 
     @Override
     public void appletResize(int width, int height) {
-        // TODO: Implement!!
+        _controller.getAppletFrame().setSize(width, height);
     }
 
     // class properties

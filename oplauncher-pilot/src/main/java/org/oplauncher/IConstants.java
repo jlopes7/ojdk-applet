@@ -3,7 +3,9 @@ package org.oplauncher;
 public interface IConstants {
     static public final Object NULLPTR = null;
 
-    static public final float HEIGHT_RATE_FACTOR = 1.65f;
+    static public final float HEIGHT_RATE_FACTOR = 1.0f;
+    static public final char DEFAULT_EOL = '\n';
+    static public final char REGISTERED_CHAR = (char) 174;
 
     static public final String CONFIG_FILENAME = "config.properties";
     static public final String CONFIG_LOG_FILENAME = "log4j2.xml";
@@ -25,10 +27,14 @@ public interface IConstants {
     static public final String CONFIG_PROP_LOGRATATION_SZ = "oplauncher.log.rotationsize";
     static public final String CONFIG_PROP_APPLETCONTEXT = "oplauncher.runtime.applet.context";
     static public final String CONFIG_PROP_ARCHIEVE_CLASSLOADER = "oplauncher.config.archive.classloader";
+    static public final String CONFIG_PROP_APPLET_ALWAYSONTOP = "oplauncher.runtime.alwaysontop";
+    static public final String CONFIG_PROP_APPLET_RESIZEFLAG = "oplauncher.runtime.resize.active";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";
 
     static public final int APPLET_WIDTH_DEFAULT = 400;
     static public final int APPLET_HEIGHT_DEFAULT = 300;
+
+    static public final int APPLET_ICON_SIZE_16 = 16;
 }

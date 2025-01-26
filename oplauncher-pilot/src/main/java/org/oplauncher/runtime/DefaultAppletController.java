@@ -8,6 +8,7 @@ import org.oplauncher.OPLauncherException;
 
 import java.applet.Applet;
 import java.applet.AppletContext;
+import java.awt.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -32,10 +33,18 @@ public class DefaultAppletController extends AppletController {
 
             AppletRegistry.add(getAppletClassLoader().getAppletName(), applet);
 
+            configureApplet(applet).defineAppletFrame(String.format("OPLauncher Applet Window - %s", applet.getName()))
+                                   .defineStatusBar("Ready!", applet);
+
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Applet class loaded successfully: {}", klassName);
             }
             applet.setStub(new CustomAppletStub(this));
+
+            Dimension appletDim = new Dimension(getAppletClassLoader().getAppletParameters().getWidth(),
+                                                getAppletClassLoader().getAppletParameters().getHeight());
+            applet.setSize(appletDim);
+            applet.setPreferredSize(appletDim);
 
             LOGGER.info("Calling applet INIT");
             applet.init();

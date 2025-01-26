@@ -11,6 +11,7 @@ public enum ErrorCode {
     UNSUPPORTED_APPLET_CONTEXT(7007),
     APPLET_EXECUTION_ERROR(7008),
     UNSUPPORTED_ARCHIVE_CLZLOADER(7009),
+    FAILED_TO_LOAD_RESOURCE(7010),
       ;
 
     private ErrorCode(int cd) {

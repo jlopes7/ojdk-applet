@@ -7,7 +7,6 @@ import org.apache.logging.log4j.Logger;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.res.HttpSessionResourceRequest;
 import org.oplauncher.res.ResourceRequestFactory;
-import org.oplauncher.res.URLUtils;
 
 import static org.oplauncher.res.ResourceType.*;
 
@@ -40,6 +39,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         super(parent);
 
         _fileMap = new LinkedHashMap<>();
+        _loadedClassMap = new LinkedHashMap<>();
     }
 
     @Override
@@ -66,6 +66,14 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         finally {
             LOCK.unlock();
         }
+    }
+
+    protected boolean isClassLoaded(String name) {
+        return _loadedClassMap.containsKey(name);
+    }
+
+    protected Class<?> getLoadedClass(String name) {
+        return _loadedClassMap.get(name);
     }
 
     protected List<FileResource> loadAppletFromURL(List<T> parameters) throws OPLauncherException {
@@ -172,19 +180,43 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
     @Override
     protected Class<?> findClass(String name) throws ClassNotFoundException {
+        LOCK.lock();
         try {
-            ArchiveClassLoaderType type = ConfigurationHelper.getArchiveClassLoaderType();
-            byte[] klassBytes = loadClassData(name);
-            switch (type) {
-                case SIMPLE: return defineClass(name, klassBytes, 0, klassBytes.length);
-                case URL: return _urlClassLoader.loadClass(name);
-                default: {
-                    throw new RuntimeException(String.format("Could not load class with the class loader type [%s]. Class: %s", type.name(), name));
+            if (isClassLoaded(name)) {
+                return getLoadedClass(name);
+            }
+            else {
+                try {
+                    ArchiveClassLoaderType type = ConfigurationHelper.getArchiveClassLoaderType();
+                    FileResource res = getResourceByName(name);
+                    Class<?> klass;
+
+                    if (res != null && res.getResourceType() == FileResource.ResourceType.CLASS_FILE) {
+                        type = ArchiveClassLoaderType.SIMPLE;
+                    }
+
+                    switch (type) {
+                        case SIMPLE:
+                            byte[] klassBytes = loadClassData(name);
+                            klass = defineClass(name, klassBytes, 0, klassBytes.length);
+                            break;
+                        case URL:
+                            klass = getURLClassLoader(name).loadClass(name);
+                            break;
+                        default: {
+                            throw new RuntimeException(String.format("Could not load class with the class loader type [%s]. Class: %s", type.name(), name));
+                        }
+                    }
+
+                    _loadedClassMap.put(name, klass);
+                    return klass;
+                } catch (IOException e) {
+                    throw new ClassNotFoundException(String.format("Could not load class from Applet framework: [%s]", name), e);
                 }
             }
         }
-        catch (IOException e) {
-            throw new ClassNotFoundException(String.format("Could not load class from Applet framework: [%s]", name), e);
+        finally {
+            LOCK.unlock();
         }
     }
 
@@ -253,8 +285,10 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                     }
                 });
     }
-    private void _loadJarFromURLClzLoader(final File jarFile) throws IOException {
-        _urlClassLoader = new URLClassLoader(new URL[]{jarFile.toURI().toURL()});
+    private void _initURLClzLoader(final File file) throws IOException {
+        if ( _urlClassLoader == null ) {
+            _urlClassLoader = new URLClassLoader(new URL[]{file.toURI().toURL()});
+        }
     }
     protected void loadJar(final File jarPath) throws IOException {
         ArchiveClassLoaderType type = ConfigurationHelper.getArchiveClassLoaderType();
@@ -264,7 +298,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                 break;
             }
             case URL: {
-                _loadJarFromURLClzLoader(jarPath);
+                _initURLClzLoader(jarPath);
                 break;
             }
             default: {
@@ -274,8 +308,28 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
     }
 
+    protected URLClassLoader getURLClassLoader(final String name) {
+        if (_urlClassLoader == null) {
+            try {
+                _urlClassLoader = new URLClassLoader(new URL[]{getResourceByName(name).getUnmaskedFile().toURI().toURL()}, this);
+            }
+            catch (MalformedURLException mex) {
+                throw new OPLauncherException(mex, ErrorCode.MALFORMED_URL);
+            }
+        }
+
+        return _urlClassLoader;
+    }
+
+    private String getResourcePath(final String name) {
+        return name.replace('.', '/') + ".class";
+    }
+    protected FileResource getResourceByName(final String name) {
+        return getFileResource(getResourcePath(name));
+    }
+
     private byte[] loadClassData(final String name) throws IOException {
-        String path = name.replace('.', '/') + ".class";
+        String path = getResourcePath(name);
         FileResource res = getFileResource(path);
         if (res == null) {
             throw new IOException(String.format("Could not find a class resource associated with the following class: [%s]", path));
@@ -295,7 +349,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                 return Files.readAllBytes(klassFile.toPath());
             }
 
-            LOGGER.warn("Could not find a class resource associated with the following class: {}",name);
+            LOGGER.warn("Could not find a class resource associated with the following class: {}", name);
 
             return new byte[0];
         }
@@ -373,6 +427,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
     // class properties
     private Map<String, FileResource> _fileMap;
+    private Map<String, Class<?>> _loadedClassMap;
     private AppletParameters _appletParameters;
 
     private URL _appletDocumentBase;
