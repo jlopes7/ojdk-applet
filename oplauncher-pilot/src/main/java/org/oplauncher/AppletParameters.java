@@ -69,6 +69,34 @@ public class AppletParameters {
         }
     }
 
+    public final AppletParameters setPosition(int x, int y) {
+        _paramMap.put(APPLETPARAM_POSX, String.valueOf(x));
+        _paramMap.put(APPLETPARAM_POSY, String.valueOf(y));
+        return this;
+    }
+
+    public final int getPositionX() {
+        LOCK.lock();
+        try {
+            String posXStr = _paramMap.get(APPLETPARAM_POSX);
+            return posXStr == null ? -1 : Integer.valueOf(posXStr).intValue();
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    public final int getPositionY() {
+        LOCK.lock();
+        try {
+            String posYStr = _paramMap.get(APPLETPARAM_POSY);
+            return posYStr == null ? -1 : Integer.valueOf(posYStr).intValue();
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
     public final String getCustomParameter(String name) {
         LOCK.lock();
         try {

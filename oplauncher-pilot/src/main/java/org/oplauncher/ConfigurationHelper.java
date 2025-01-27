@@ -141,7 +141,19 @@ public class ConfigurationHelper {
     }
 
     static public final boolean isCacheActive() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_CACHE_ACTIVEFLAG, "true"));
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_CACHE_ACTIVEFLAG, "true").trim());
+    }
+
+    static public final boolean isWindowCloseActive() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_CLOSEWINDOW, "true").trim());
+    }
+
+    static public final boolean isStatusBarActive() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_STATUSBAR, "true").trim());
+    }
+
+    static public final boolean trackBrowserWindowPosition() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_TRACKWINPOS, "false").trim());
     }
 
     static private boolean configPropAvailable(String prop) {

@@ -32,7 +32,14 @@ public abstract class AppletController {
     public String execute(OpCode opcode) throws OPLauncherException {
         /// Visitor pattern for the respective operation code
         switch (opcode) {
+            /**
+             * Load the Applet
+             */
             case LOAD_APPLET: return loadAppletClass();
+            /**
+             * Change the Applet frame position
+             */
+            case CHANGE_POSTION: return changeAppletPosition();
             default: {
                 throw new OPLauncherException(String.format("Unsupported operational code: [%s]", opcode.name()));
             }
@@ -49,19 +56,31 @@ public abstract class AppletController {
     protected String renderApplet(Applet applet) throws Exception {
         LOCK.lock();
         try {
+            _runningApplet = applet;
+
             getAppletFrame().setLayout(new BorderLayout(5, 5));
             getAppletFrame().setSize(getAppletClassLoader().getAppletParameters().getWidth(), getAppletClassLoader().getAppletParameters().getHeight());
-            getAppletFrame().setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             getAppletFrame().setBackground(Color.white);
             getAppletFrame().setAlwaysOnTop(ConfigurationHelper.isFrameAlwaysOnTop());
             getAppletFrame().setResizable(ConfigurationHelper.isFrameResizable());
 
-            getAppletStatusBar().setBorder(BorderFactory.createEtchedBorder());
-            //getAppletStatusBar().setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
-            getAppletStatusBar().add(getAppletStatusBarLabel(), BorderLayout.WEST);
-            getAppletStatusBar().add(getButtonPanel(), BorderLayout.EAST);
-            // Add the status bar to the bottom
-            getAppletFrame().add(getAppletStatusBar(), BorderLayout.SOUTH);
+            if ( !ConfigurationHelper.isWindowCloseActive() || ConfigurationHelper.trackBrowserWindowPosition() ) {
+                getAppletFrame().setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+                getAppletFrame().setUndecorated(true);
+            }
+            else {
+                getAppletFrame().setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            }
+
+            ///  Only add the status bar if enabled
+            if ( ConfigurationHelper.isStatusBarActive() && !ConfigurationHelper.trackBrowserWindowPosition() ) {
+                getAppletStatusBar().setBorder(BorderFactory.createEtchedBorder());
+                //getAppletStatusBar().setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
+                getAppletStatusBar().add(getAppletStatusBarLabel(), BorderLayout.WEST);
+                getAppletStatusBar().add(getButtonPanel(), BorderLayout.EAST);
+                // Add the status bar to the bottom
+                getAppletFrame().add(getAppletStatusBar(), BorderLayout.SOUTH);
+            }
 
             getAppletFrame().add(applet, BorderLayout.CENTER);
 
@@ -74,8 +93,7 @@ public abstract class AppletController {
             //applet.repaint();
 
             // Center the frame on the screen and pack
-            getAppletFrame().setLocationRelativeTo(null);
-            getAppletFrame().pack();
+            setAppletPosition().getAppletFrame().pack();
             // Add events and shows the applet
             addEvents(applet).getAppletFrame().setVisible(true);
             getAppletFrame().toFront();
@@ -92,6 +110,18 @@ public abstract class AppletController {
         return klass.replace("/", ".")
                 .replace("\\", ".")
                 .replace(".class", "");
+    }
+
+    public AppletController setAppletPosition() {
+        if ( getAppletClassLoader().getAppletParameters().getPositionX() >= 0 || getAppletClassLoader().getAppletParameters().getPositionY() >= 0 ) {
+            getAppletFrame().setLocation(getAppletClassLoader().getAppletParameters().getPositionX(), getAppletClassLoader().getAppletParameters().getPositionY());
+        }
+        // Simply center the applet!
+        else {
+            getAppletFrame().setLocationRelativeTo(null);
+        }
+
+        return this;
     }
 
     private AppletController addEvents(final Applet applet) {
@@ -114,7 +144,37 @@ public abstract class AppletController {
         return this;
     }
 
+    protected AppletController move(int x, int y) {
+        LOCK.lock();
+        try {
+            if ( getApplet()!=null ) {
+                if (LOGGER.isInfoEnabled()) {
+                    LOGGER.info("About to move the applet ({}) to the position X:{} to Y:{}", getApplet().getName(), x, y);
+                }
+
+                getAppletClassLoader().getAppletParameters().setPosition(x, y);
+
+                // Reset position if it moves off-screen
+                Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+                if (x > screenSize.width - getAppletFrame().getWidth()) x = 0;   // Reset to left
+                if (y > screenSize.height - getAppletFrame().getHeight()) y = 0; // Reset to top
+
+                getAppletFrame().setLocation(x, y);
+                getAppletFrame().repaint();
+            }
+            else {
+                LOGGER.warn("No running Applet. Cannot move applet at {} to {}", x, y);
+            }
+
+            return this;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
     abstract protected String loadAppletClass() throws OPLauncherException;
+    abstract protected String changeAppletPosition() throws OPLauncherException;
 
     protected AppletClassLoader getAppletClassLoader() {
         return _classLoader;
@@ -254,13 +314,17 @@ public abstract class AppletController {
         return _buttonPanel;
     }
 
+    protected Applet getApplet() {
+        return _runningApplet;
+    }
+
     // class properties
     private AppletClassLoader _classLoader;
     private AppletContext _context;
+    private Applet _runningApplet;
 
     private boolean _appletActive;
 
-    // class properties
     private JFrame _appletFrame;
     private JLabel _appletStatusBarLabel;
     private JPanel _statusBarPanel;

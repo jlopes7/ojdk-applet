@@ -29,9 +29,14 @@ public interface IConstants {
     static public final String CONFIG_PROP_ARCHIEVE_CLASSLOADER = "oplauncher.config.archive.classloader";
     static public final String CONFIG_PROP_APPLET_ALWAYSONTOP = "oplauncher.runtime.alwaysontop";
     static public final String CONFIG_PROP_APPLET_RESIZEFLAG = "oplauncher.runtime.resize.active";
+    static public final String CONFIG_PROP_APPLET_CLOSEWINDOW = "oplauncher.runtime.closewindow.active";
+    static public final String CONFIG_PROP_APPLET_STATUSBAR = "oplauncher.runtime.statusbar.active";
+    static public final String CONFIG_PROP_APPLET_TRACKWINPOS = "oplauncher.runtime.trackwindow.position";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";
+    static public final String APPLETPARAM_POSX = "posx";
+    static public final String APPLETPARAM_POSY = "posy";
 
     static public final int APPLET_WIDTH_DEFAULT = 400;
     static public final int APPLET_HEIGHT_DEFAULT = 300;

@@ -60,4 +60,22 @@ public class DefaultAppletController extends AppletController {
             LOCK.unlock();
         }
     }
+
+    @Override
+    protected String changeAppletPosition() throws OPLauncherException {
+        LOCK.lock();
+        try {
+            move(getAppletClassLoader().getAppletParameters().getPositionX(),
+                 getAppletClassLoader().getAppletParameters().getPositionY());
+
+            return "";
+        }
+        catch (Exception e) {
+            LOGGER.error("Failed to change Applet position", e);
+            throw new OPLauncherException(e, ErrorCode.APPLET_EXECUTION_ERROR);
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
 }
