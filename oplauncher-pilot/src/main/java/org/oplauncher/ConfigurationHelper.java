@@ -140,6 +140,16 @@ public class ConfigurationHelper {
         context.start(builder.build());
     }
 
+    static public final String loadJavaConsoleText() {
+        try ( InputStream is = ConfigurationHelper.class.getResourceAsStream("/".concat(CONFIG_JAVACONSOLE_TEXT))) {
+            return IOUtils.toString(is, Charset.defaultCharset());
+        }
+        catch (Exception e) {
+            LOGGER.error("Failed to load the Java Console text: {}", CONFIG_JAVACONSOLE_TEXT, e);
+            return "";
+        }
+    }
+
     static public final boolean isCacheActive() {
         return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_CACHE_ACTIVEFLAG, "true").trim());
     }
@@ -154,6 +164,12 @@ public class ConfigurationHelper {
 
     static public final boolean trackBrowserWindowPosition() {
         return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_TRACKWINPOS, "false").trim());
+    }
+
+    static public final boolean isJavaConsoleActive() {
+        String onoff = CONFIG.getProperty(CONFIG_PROP_JAVACONSOLE, OFF_VALUE).trim();
+
+        return onoff.equalsIgnoreCase(ON_VALUE);
     }
 
     static private boolean configPropAvailable(String prop) {

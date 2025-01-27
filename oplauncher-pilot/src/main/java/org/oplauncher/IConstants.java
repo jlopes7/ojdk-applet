@@ -6,9 +6,22 @@ public interface IConstants {
     static public final float HEIGHT_RATE_FACTOR = 1.0f;
     static public final char DEFAULT_EOL = '\n';
     static public final char REGISTERED_CHAR = (char) 174;
+    static public final String ON_VALUE = "on";
+    static public final String OFF_VALUE = "off";
+
+    static public final int DEFAULT_INIT_POSX = 50;
+    static public final int DEFAULT_INIT_POSY = 50;
 
     static public final String CONFIG_FILENAME = "config.properties";
     static public final String CONFIG_LOG_FILENAME = "log4j2.xml";
+    static public final String CONFIG_JAVACONSOLE_TEXT = "CONSOLE_TEXT";
+
+    static public final String CONFIG_ICONRES_JAVACONSOLE = "/oplauncher_icon_32x32_2.png";
+    static public final String CONFIG_ICONRES_INFO = "/info-button.png";
+    static public final String CONFIG_ICONRES_REFRESH = "/refresh-button.png";
+    static public final String CONFIG_ICONRES_CLEAR = "/clear-icon.png";
+    static public final String CONFIG_ICONRES_SAVE = "/save-icon.png";
+    static public final String CONFIG_ICONRES_INFO2 = "/info-icon.png";
 
     static public final String CONFIG_LOG_DEF_RUNTIME_FILENAME = "oplauncher-pilot.log";
     static public final String CONFIG_LOG_DEF_RUNTIME_PATNAME = "oplauncher-pilot-%d{yyyy-MM-dd}-%i.log.gz";
@@ -32,6 +45,7 @@ public interface IConstants {
     static public final String CONFIG_PROP_APPLET_CLOSEWINDOW = "oplauncher.runtime.closewindow.active";
     static public final String CONFIG_PROP_APPLET_STATUSBAR = "oplauncher.runtime.statusbar.active";
     static public final String CONFIG_PROP_APPLET_TRACKWINPOS = "oplauncher.runtime.trackwindow.position";
+    static public final String CONFIG_PROP_JAVACONSOLE = "oplauncher.config.java.console";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";

@@ -17,6 +17,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.oplauncher.IConstants.*;
+import static org.oplauncher.runtime.JavaConsole.newInstance;
 
 public abstract class AppletController {
     static private final Lock LOCK = new ReentrantLock();
@@ -35,7 +36,14 @@ public abstract class AppletController {
             /**
              * Load the Applet
              */
-            case LOAD_APPLET: return loadAppletClass();
+            case LOAD_APPLET: {
+                // Triggers the Java console if enabled
+                if (ConfigurationHelper.isJavaConsoleActive()) {
+                    triggerJavaConsole();
+                }
+
+                return loadAppletClass();
+            }
             /**
              * Change the Applet frame position
              */
@@ -43,6 +51,25 @@ public abstract class AppletController {
             default: {
                 throw new OPLauncherException(String.format("Unsupported operational code: [%s]", opcode.name()));
             }
+        }
+    }
+
+    protected AppletController triggerJavaConsole() {
+        LOCK.lock();
+        try {
+            if ( _javaConsole == null ) {
+                SwingUtilities.invokeLater(() -> {
+                    _javaConsole = newInstance().display(DEFAULT_INIT_POSX, DEFAULT_INIT_POSY);
+                });
+            }
+            else if ( !getJavaConsole().isVisible() ) {
+                getJavaConsole().display(DEFAULT_INIT_POSX, DEFAULT_INIT_POSY);
+            }
+
+            return this;
+        }
+        finally {
+            LOCK.unlock();
         }
     }
 
@@ -240,12 +267,14 @@ public abstract class AppletController {
         _buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
 
         // Image processing
-        ImageIcon originalRefreshIcon = new ImageIcon(_loadReloadIconBytes("/refresh-button.png"));
-        ImageIcon originalInfoIcon    = new ImageIcon(_loadReloadIconBytes("/info-button.png"));
+        ImageIcon originalRefreshIcon = new ImageIcon(_loadReloadIconBytes(CONFIG_ICONRES_REFRESH));
+        ImageIcon originalInfoIcon    = new ImageIcon(_loadReloadIconBytes(CONFIG_ICONRES_INFO));
+        ImageIcon originalJavaConsoleIcon = new ImageIcon(_loadReloadIconBytes(CONFIG_ICONRES_JAVACONSOLE));
         Image iconRefresh = originalRefreshIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
         Image iconInfo    = originalInfoIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
+        Image javaConsole = originalJavaConsoleIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
 
-        _appletReloadButton = new JButton(new ImageIcon(iconRefresh)); // Add your reload icon path
+        _appletReloadButton = new JButton(new ImageIcon(iconRefresh));
         _appletReloadButton.setToolTipText("Reload Applet Code");
         _appletReloadButton.addActionListener(evt -> {
             LOGGER.info("Reloading the applet... {}", applet.getName());
@@ -264,7 +293,7 @@ public abstract class AppletController {
             }
         });
 
-        _appletInfoButton = new JButton(new ImageIcon(iconInfo)); // Add your reload icon path
+        _appletInfoButton = new JButton(new ImageIcon(iconInfo));
         _appletInfoButton.setToolTipText("OJDK Launcher Information");
         _appletInfoButton.addActionListener(evt -> {
             LOGGER.info("Displaying application info.");
@@ -274,6 +303,14 @@ public abstract class AppletController {
                     JOptionPane.INFORMATION_MESSAGE);
         });
 
+        _javaConsoleButton = new JButton(new ImageIcon(javaConsole));
+        _javaConsoleButton.setToolTipText("Open Java Console");
+        _javaConsoleButton.addActionListener(evt -> {
+            LOGGER.info("Openning the Java Console if not already opened for: {}", applet.getName());
+            triggerJavaConsole();
+        });
+
+        getButtonPanel().add(getJavaConsoleButton());
         getButtonPanel().add(getAppletInfoButton());
         getButtonPanel().add(getAppletReloadButton());
 
@@ -310,8 +347,14 @@ public abstract class AppletController {
     public JButton getAppletInfoButton() {
         return _appletInfoButton;
     }
+    public JButton getJavaConsoleButton() {
+        return _javaConsoleButton;
+    }
     public JPanel getButtonPanel() {
         return _buttonPanel;
+    }
+    public JavaConsole getJavaConsole() {
+        return _javaConsole;
     }
 
     protected Applet getApplet() {
@@ -325,10 +368,12 @@ public abstract class AppletController {
 
     private boolean _appletActive;
 
+    private JavaConsole _javaConsole;
     private JFrame _appletFrame;
     private JLabel _appletStatusBarLabel;
     private JPanel _statusBarPanel;
     private JPanel _buttonPanel;
     private JButton _appletReloadButton;
     private JButton _appletInfoButton;
+    private JButton _javaConsoleButton;
 }
