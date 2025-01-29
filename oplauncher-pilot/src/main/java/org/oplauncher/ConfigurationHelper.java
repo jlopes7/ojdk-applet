@@ -13,6 +13,7 @@ import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFact
 import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.runtime.AppletContextType;
+import org.oplauncher.runtime.JavaConsoleBuilder;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -148,6 +149,11 @@ public class ConfigurationHelper {
             LOGGER.error("Failed to load the Java Console text: {}", CONFIG_JAVACONSOLE_TEXT, e);
             return "";
         }
+    }
+
+    static public final JavaConsoleBuilder.ConsoleType getConsoleType() {
+        String configtype = CONFIG.getProperty(CONFIG_PROP_JAVACONSOLE_TYPE, CONFIG_NATIVE_JAVACONSOLE_TYPE);
+        return JavaConsoleBuilder.ConsoleType.parse(configtype);
     }
 
     static public final boolean isCacheActive() {

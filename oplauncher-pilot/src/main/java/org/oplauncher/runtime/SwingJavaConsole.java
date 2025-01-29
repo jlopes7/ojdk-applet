@@ -1,7 +1,6 @@
 package org.oplauncher.runtime;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.ConfigurationHelper;
@@ -20,20 +19,16 @@ import java.util.Date;
 
 import static org.oplauncher.IConstants.*;
 
-public class JavaConsole extends JFrame {
-    static private final Logger LOGGER = LogManager.getLogger(JavaConsole.class);
+public class SwingJavaConsole extends JFrame implements JavaConsole {
+    static private final Logger LOGGER = LogManager.getLogger(SwingJavaConsole.class);
 
-    static protected final JavaConsole newInstance() {
-        return new JavaConsole();
-    }
-
-    public JavaConsole() {
+    protected SwingJavaConsole(AppletController ctrl) {
         super("OPLauncher Java Console");
 
         _buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         _outputText = new JTextPane();
         _outputText.setEditable(false);
-        _outputText.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        _outputText.setFont(new Font(CONFIG_JAVACONSOLE_FONTOPT1, Font.PLAIN, 12));
         _styleDoc = _outputText.getStyledDocument();
         _styleOut = _outputText.addStyle("SystemOut", null);
         _styleErr = _outputText.addStyle("SystemErr", null);
@@ -44,14 +39,16 @@ public class JavaConsole extends JFrame {
         initializeUI().redirectOutput().printHelloString();
     }
 
-    protected JavaConsole printHelloString() {
+    @Override
+    public JavaConsole printHelloString() {
         System.out.println(ConfigurationHelper.loadJavaConsoleText());
         System.out.println(new Date(System.currentTimeMillis()));
         System.out.println();
         return this;
     }
 
-    public JavaConsole initializeUI() {
+    @Override
+    public SwingJavaConsole initializeUI() {
         setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
         setSize(800, 600);
         setLayout(new BorderLayout(5, 5));
@@ -76,7 +73,8 @@ public class JavaConsole extends JFrame {
         return this;
     }
 
-    public JavaConsole display(int posx, int posy) {
+    @Override
+    public SwingJavaConsole display(int posx, int posy) {
         // Position the Java Console to always near the top-right corner
         setLocation(posx, posy);
         setVisible(true);
@@ -84,7 +82,7 @@ public class JavaConsole extends JFrame {
         return this;
     }
 
-    protected JavaConsole registerEvents() {
+    protected SwingJavaConsole registerEvents() {
         getClearButton().addActionListener(e -> clearConsole());
         getSaveButton().addActionListener(e -> saveConsole());
         return this;
@@ -133,7 +131,8 @@ public class JavaConsole extends JFrame {
         return button;
     }
 
-    private JavaConsole redirectOutput() {
+    @Override
+    public JavaConsole redirectOutput() {
         // Redirect System.out
         PrintStream outStream = new PrintStream(new CustomOutputStream(getStyleOut()));
         System.setOut(outStream);
@@ -143,6 +142,19 @@ public class JavaConsole extends JFrame {
         System.setErr(errStream);
 
         return this;
+    }
+
+    @Override
+    public JavaConsole displayCenter() {
+        setLocationRelativeTo(null); // Center the screen
+        repaint();
+        setVisible(true);
+        return this;
+    }
+
+    @Override
+    public boolean isConsoleVisible() {
+        return isVisible();
     }
 
     private class CustomOutputStream extends OutputStream {
@@ -171,6 +183,11 @@ public class JavaConsole extends JFrame {
                 LOGGER.error(e);
             }
         }
+    }
+
+    @Override
+    public AppletController getAppletController() {
+        return _appletController;
     }
 
     protected JTextPane getOutputTextPane() {
@@ -209,4 +226,6 @@ public class JavaConsole extends JFrame {
     private JButton _clearButton;
     private JButton _saveButton;
     private JButton _infoButton;
+
+    private AppletController _appletController;
 }

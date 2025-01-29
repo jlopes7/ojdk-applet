@@ -17,7 +17,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.oplauncher.IConstants.*;
-import static org.oplauncher.runtime.JavaConsole.newInstance;
 
 public abstract class AppletController {
     static private final Lock LOCK = new ReentrantLock();
@@ -54,15 +53,17 @@ public abstract class AppletController {
         }
     }
 
+    private boolean isSWTConsole() {
+        return ConfigurationHelper.getConsoleType() == JavaConsoleBuilder.ConsoleType.SWT;
+    }
+
     protected AppletController triggerJavaConsole() {
         LOCK.lock();
         try {
-            if ( _javaConsole == null ) {
-                SwingUtilities.invokeLater(() -> {
-                    _javaConsole = newInstance().display(DEFAULT_INIT_POSX, DEFAULT_INIT_POSY);
-                });
+            if ( getJavaConsole() == null ) {
+                _javaConsole = JavaConsoleBuilder.newConsole(this).load().show();
             }
-            else if ( !getJavaConsole().isVisible() ) {
+            else if ( !getJavaConsole().isConsoleVisible() ) {
                 getJavaConsole().display(DEFAULT_INIT_POSX, DEFAULT_INIT_POSY);
             }
 
@@ -84,6 +85,10 @@ public abstract class AppletController {
         LOCK.lock();
         try {
             _runningApplet = applet;
+
+            // Applet frame icon
+            ImageIcon frameIcon = new ImageIcon(getClass().getResource(CONFIG_ICONRES_JAVACONSOLE));
+            getAppletFrame().setIconImage(frameIcon.getImage());
 
             getAppletFrame().setLayout(new BorderLayout(5, 5));
             getAppletFrame().setSize(getAppletClassLoader().getAppletParameters().getWidth(), getAppletClassLoader().getAppletParameters().getHeight());
@@ -124,6 +129,12 @@ public abstract class AppletController {
             // Add events and shows the applet
             addEvents(applet).getAppletFrame().setVisible(true);
             getAppletFrame().toFront();
+
+            // TODO: Workaround for the toggle mechanism
+            if ( isSWTConsole() ) {
+                // Disable the java console button if
+                getJavaConsoleButton().setEnabled(!ConfigurationHelper.isJavaConsoleActive());
+            }
 
             LOGGER.info("Applet successfully loaded !");
 
@@ -308,6 +319,11 @@ public abstract class AppletController {
         _javaConsoleButton.addActionListener(evt -> {
             LOGGER.info("Openning the Java Console if not already opened for: {}", applet.getName());
             triggerJavaConsole();
+
+            // TODO: Workaround for the toggling problem with the SWT thread. Change in the future
+            if (isSWTConsole()) {
+                getJavaConsoleButton().setEnabled(false);
+            }
         });
 
         getButtonPanel().add(getJavaConsoleButton());

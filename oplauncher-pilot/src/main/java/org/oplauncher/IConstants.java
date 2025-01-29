@@ -15,6 +15,11 @@ public interface IConstants {
     static public final String CONFIG_FILENAME = "config.properties";
     static public final String CONFIG_LOG_FILENAME = "log4j2.xml";
     static public final String CONFIG_JAVACONSOLE_TEXT = "CONSOLE_TEXT";
+    static public final String CONFIG_NATIVE_JAVACONSOLE_TYPE = "native";
+    static public final String CONFIG_SWING_JAVACONSOLE_TYPE = "swing";
+
+    static public final String CONFIG_JAVACONSOLE_FONTOPT1 = "Monospaced";
+    static public final String CONFIG_JAVACONSOLE_FONTOPT2 = "Verdana";
 
     static public final String CONFIG_ICONRES_JAVACONSOLE = "/oplauncher_icon_32x32_2.png";
     static public final String CONFIG_ICONRES_INFO = "/info-button.png";
@@ -46,6 +51,7 @@ public interface IConstants {
     static public final String CONFIG_PROP_APPLET_STATUSBAR = "oplauncher.runtime.statusbar.active";
     static public final String CONFIG_PROP_APPLET_TRACKWINPOS = "oplauncher.runtime.trackwindow.position";
     static public final String CONFIG_PROP_JAVACONSOLE = "oplauncher.config.java.console";
+    static public final String CONFIG_PROP_JAVACONSOLE_TYPE = "oplauncher.config.java.console.type";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";
