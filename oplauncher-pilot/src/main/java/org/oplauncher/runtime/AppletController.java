@@ -26,6 +26,8 @@ public abstract class AppletController {
         _classLoader = clzloader;
         _context = context;
 
+        OPLauncherConfig.instance.registerController(this);
+
         deactivateApplet();
     }
 
