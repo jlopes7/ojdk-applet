@@ -4,6 +4,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.*;
+import org.oplauncher.load.SplashScreen;
 
 import javax.swing.*;
 import java.applet.Applet;
@@ -16,6 +17,7 @@ import java.io.InputStream;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.oplauncher.ConfigurationHelper.loadReloadIconBytes;
 import static org.oplauncher.IConstants.*;
 
 public abstract class AppletController {
@@ -89,7 +91,7 @@ public abstract class AppletController {
             _runningApplet = applet;
 
             // Applet frame icon
-            ImageIcon frameIcon = new ImageIcon(getClass().getResource(CONFIG_ICONRES_JAVACONSOLE));
+            ImageIcon frameIcon = ConfigurationHelper.getFrameIcon();
             getAppletFrame().setIconImage(frameIcon.getImage());
 
             getAppletFrame().setLayout(new BorderLayout(5, 5));
@@ -131,6 +133,9 @@ public abstract class AppletController {
             // Add events and shows the applet
             addEvents(applet).getAppletFrame().setVisible(true);
             getAppletFrame().toFront();
+
+            // Dispose the splash
+            SplashScreen.instance.closeSplash();
 
             // TODO: Workaround for the toggle mechanism
             if ( isSWTConsole() ) {
@@ -257,19 +262,6 @@ public abstract class AppletController {
         }
     }
 
-    private byte[] _loadReloadIconBytes(String resName) {
-        try (InputStream is = getClass().getResourceAsStream(resName)) {
-            if (is != null) {
-                return IOUtils.toByteArray(is);
-            }
-
-            throw new OPLauncherException("Failed to load refresh button icon", ErrorCode.FAILED_TO_LOAD_RESOURCE);
-        }
-        catch (IOException e) {
-            throw new OPLauncherException("Failed to load refresh button icon", e, ErrorCode.FAILED_TO_LOAD_RESOURCE);
-        }
-    }
-
     protected AppletController defineAppletFrame(String title) {
         _appletFrame = new JFrame(title);
         return this;
@@ -280,9 +272,9 @@ public abstract class AppletController {
         _buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
 
         // Image processing
-        ImageIcon originalRefreshIcon = new ImageIcon(_loadReloadIconBytes(CONFIG_ICONRES_REFRESH));
-        ImageIcon originalInfoIcon    = new ImageIcon(_loadReloadIconBytes(CONFIG_ICONRES_INFO));
-        ImageIcon originalJavaConsoleIcon = new ImageIcon(_loadReloadIconBytes(CONFIG_ICONRES_JAVACONSOLE));
+        ImageIcon originalRefreshIcon = new ImageIcon(loadReloadIconBytes(CONFIG_ICONRES_REFRESH));
+        ImageIcon originalInfoIcon    = new ImageIcon(loadReloadIconBytes(CONFIG_ICONRES_INFO));
+        ImageIcon originalJavaConsoleIcon = ConfigurationHelper.getFrameIcon();
         Image iconRefresh = originalRefreshIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
         Image iconInfo    = originalInfoIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);
         Image javaConsole = originalJavaConsoleIcon.getImage().getScaledInstance(APPLET_ICON_SIZE_16, APPLET_ICON_SIZE_16, Image.SCALE_SMOOTH);

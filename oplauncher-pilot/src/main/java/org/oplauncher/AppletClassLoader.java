@@ -1,5 +1,6 @@
 package org.oplauncher;
 
+import org.oplauncher.load.SplashScreen;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.runtime.AppletController;
 import org.oplauncher.runtime.AppletControllerFactory;
@@ -15,6 +16,10 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     public AppletClassLoader() {
         super(AppletClassLoader.getSystemClassLoader());
 
+        // Trigger the splash
+        SplashScreen.instance.showSplash();
+
+        // Creates the controller
         _appletController = AppletControllerFactory.createAppletController(this);
     }
 
@@ -57,12 +62,12 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                     "", "",
                     "width=500;height=100",
                     "Simple.class"));*/
-            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://javatester.org",
                     "",
                     "", "Java Tester Applet",
                     "width=440;height=60;posx=100;posy=100",
-                    "JavaVersionDisplayApplet.class"));
+                    "JavaVersionDisplayApplet.class"));*/
             /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://www.math.uh.edu/mathonline/JavaTest",
                     "",
@@ -75,12 +80,12 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                     "dxf-applet-signed.jar", "DXF Applet",
                     "width=1024;height=400",
                     "de.caff.dxf.applet.DxfApplet"));*/
-            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://imagej.net/ij",
                     "",
                     "ij.jar", "ImageJ Applet",
                     "width=300;height=100",
-                    "ij.ImageJApplet"));*/
+                    "ij.ImageJApplet"));
             /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://web.mit.edu/java_v1.0.2/www/tutorial/java/threads/",
                     "codebase=example",

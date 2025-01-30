@@ -15,8 +15,10 @@ import org.oplauncher.res.FileResource;
 import org.oplauncher.runtime.AppletContextType;
 import org.oplauncher.runtime.JavaConsoleBuilder;
 
+import javax.swing.*;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
@@ -188,6 +190,46 @@ public class ConfigurationHelper {
 
     static public final String getLogPattern() {
         return CONFIG.getProperty(CONFIG_PROP_LOGPATTERN, "%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n").trim();
+    }
+
+    static public byte[] loadReloadIconBytes(String resName) {
+        File resFile = new File(resName);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Loading resource from: {}", resName);
+        }
+        if (!resFile.exists()) {
+            try (InputStream is = ConfigurationHelper.class.getResourceAsStream(resName.trim())) {
+                if (is != null) {
+                    return IOUtils.toByteArray(is);
+                }
+
+                throw new OPLauncherException("Failed to load/refresh icon", ErrorCode.FAILED_TO_LOAD_RESOURCE);
+            }
+            catch (IOException e) {
+                LOGGER.error("Failed to load/refresh icon: {}", resName, e);
+                throw new OPLauncherException("Failed to load/refresh icon", e, ErrorCode.FAILED_TO_LOAD_RESOURCE);
+            }
+        }
+        else {
+            try ( FileInputStream fis = new FileInputStream(resFile); ) {
+                return IOUtils.toByteArray(fis);
+            }
+            catch (IOException e) {
+                LOGGER.error("Failed to load/refresh icon: {}", resName, e);
+                throw new OPLauncherException("Failed to load/refresh icon", e, ErrorCode.FAILED_TO_LOAD_RESOURCE);
+            }
+        }
+    }
+    static public final ImageIcon getFrameIcon() {
+        String iconpat = CONFIG.getProperty(CONFIG_PROP_APPLETFRAME_ICON, CONFIG_ICONRES_JAVACONSOLE);
+
+        return new ImageIcon(loadReloadIconBytes(iconpat));
+    }
+
+    static public final ImageIcon getSplashIcon() {
+        String iconsplash = CONFIG.getProperty(CONFIG_PROP_SPLASH_IMAGE, CONFIG_SPLASH_IMAGE);
+
+        return new ImageIcon(loadReloadIconBytes(iconsplash));
     }
 
     static public final String computeFileHashName(String resName) {

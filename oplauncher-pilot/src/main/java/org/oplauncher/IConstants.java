@@ -27,6 +27,7 @@ public interface IConstants {
     static public final String CONFIG_ICONRES_CLEAR = "/clear-icon.png";
     static public final String CONFIG_ICONRES_SAVE = "/save-icon.png";
     static public final String CONFIG_ICONRES_INFO2 = "/info-icon.png";
+    static public final String CONFIG_SPLASH_IMAGE = "/oplauncher_splash.png";
 
     static public final String CONFIG_LOG_DEF_RUNTIME_FILENAME = "oplauncher-pilot.log";
     static public final String CONFIG_LOG_DEF_RUNTIME_PATNAME = "oplauncher-pilot-%d{yyyy-MM-dd}-%i.log.gz";
@@ -52,6 +53,8 @@ public interface IConstants {
     static public final String CONFIG_PROP_APPLET_TRACKWINPOS = "oplauncher.runtime.trackwindow.position";
     static public final String CONFIG_PROP_JAVACONSOLE = "oplauncher.config.java.console";
     static public final String CONFIG_PROP_JAVACONSOLE_TYPE = "oplauncher.config.java.console.type";
+    static public final String CONFIG_PROP_APPLETFRAME_ICON = "oplauncher.runtime.icon";
+    static public final String CONFIG_PROP_SPLASH_IMAGE = "oplauncher.splash.image";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";
