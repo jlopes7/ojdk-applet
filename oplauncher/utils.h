@@ -35,6 +35,14 @@
     #define pclose _pclose
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#   define LINE_BREAK      "\r\n"
+#   define PATH_SEPARATOR "\\"
+#else
+#define LINE_BREAK      "\n"
+#   define PATH_SEPARATOR "/"
+#endif
+
 #define _MEMZERO(var, size) memset((var), 0, (size))
 
 typedef struct {
@@ -45,7 +53,10 @@ typedef struct {
 typedef unsigned short returncode_t;
 
 int sendErrorMessage(const char* errorMsg, const int errorCode);
-returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **clName, char **jpath, char **type, data_tuplet_t *tuplet);
+returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **className, char **appletName,
+                                        char **archiveUrl, char **baseUrl, char **codebase,
+                                        char **height, char **width, double *posx, double *posy,
+                                        data_tuplet_t *tupletCookies, data_tuplet_t *parameters);
 returncode_t parse_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet);
 int chrome_read_message(char *buffer);
 void chrome_send_message(const char *message);

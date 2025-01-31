@@ -77,16 +77,6 @@ int main(void) {
     /*
      * Step 1: Service initialization...
      */
-    // Show the splash screen
-    show_splash_screen(hInstance);
-    // Show the Java console
-    show_console(hInstance);
-    Sleep(3000); // TODO: Just idle for a bit... (we want to show our beautiful image don't we...)
-    print_hello();
-
-    // Main application logic
-    //MessageBox(NULL, "Main application is now running!", "Oplauncher", MB_OK);
-
     // Retrieve the OPLAUNCHER_JAVA_HOME environment variable
     if ( resolveJNIDllDepsOnEnvVar("jre/bin/server") != EXIT_SUCCESS ) {
         return EXIT_FAILURE;
@@ -99,7 +89,6 @@ int main(void) {
     }
 
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_USER_DIRS);
-    //SetDllDirectory(NULL);
 
     // Use LoadLibraryEx to load jvm.dll with the extended DLL search path
     snprintf(javaHome, MAX_PATH, "%s/jre/bin/server/jvm.dll", javaHome);
@@ -132,7 +121,7 @@ int main(void) {
     }
 
     /*
-     * Step 3: Save the class/jar bits to be loaded by the JVM
+     * Step 3: Prepare the communication with the OPlauncher Pilot
      */
     load_cache_path(cache_path, sizeof(cache_path));
 
@@ -142,35 +131,22 @@ int main(void) {
     // First chrome message is to prepare and load the applet
     chrome_read_message(buffer);
     // Parse the incoming JSON (a simple example without full JSON parsing)
-    char *class_name;
-    char *jar_path;
-    char *file_type;
-    char output_file[BUFFER_SIZE];
-    rc = parse_msg_from_chrome_init(buffer, &class_name, &jar_path, &file_type, NULL);
+    char *op, *applet_name, *class_name, *archive_url, *base_url, *codebase, *height, *width;
+    double posx, posy;
+    rc = parse_msg_from_chrome_init(buffer, &op, &class_name, &applet_name, &archive_url, &base_url, &codebase, &height, &width, &posx, &posy, NULL, NULL);
+
     if (rc != EXIT_SUCCESS) {
         sendErrorMessage("Could not bits from the Applet class or Jar file", rc);
+        free(op);
         free(class_name);
-        free(jar_path);
-        free(file_type);
+        free(applet_name);
+        free(archive_url);
+        free(base_url);
+        free(codebase);
+        free(height);
+        free(width);
         return EXIT_FAILURE;
     }
-    snprintf(output_file, BUFFER_SIZE, "%s.%s", (strncmp(file_type, CHROME_EXT_FILETYPEJAR, MAX_PATH) ? jar_path : class_name),
-                                                                (strncmp(file_type, CHROME_EXT_FILETYPEJAR, MAX_PATH) ? CHROME_EXT_FILETYPEJAR : CHROME_EXT_FILETYPECLAZZ));
-
-    rc = process_base64_file_from_json(buffer, output_file);
-    if (rc != EXIT_SUCCESS) {
-        char errMsg[BUFFER_SIZE];
-        snprintf(errMsg, BUFFER_SIZE, "An error occurred saving the file: %s", output_file);
-        sendErrorMessage(errMsg, rc);
-        free(class_name);
-        free(jar_path);
-        free(file_type);
-        return EXIT_FAILURE;
-    }
-    /// Cleanup
-    free(class_name);
-    free(jar_path);
-    free(file_type);
 
     /*
      * Step 3.1: Signal processing (optional step)
@@ -179,15 +155,18 @@ int main(void) {
     // Register signal handler for SIGINT and SIGTERM
     signal(SIGINT, signal_handler);  // Handle Ctrl+C
     signal(SIGTERM, signal_handler); // Handle termination signal
-#else
-    // Hide the splash screen
-    hide_splash_screen();
 #endif
+
+    /*
+     * Step 3.2: Trigger the applet execution
+     */
+    load_applet (op, class_name, applet_name, archive_url, base_url, codebase, height, width, NULL, NULL, posx, posy);
+
     /*
      * Step 4: Trigger the dispatcher service
      */
-    memset(buffer, 0, BUFFER_SIZE);
-    while (!End_OpLauncher_Process /*Controls either if the process should end naturally or not*/
+    /*memset(buffer, 0, BUFFER_SIZE);
+    while (!End_OpLauncher_Process //Controls either if the process should end naturally or not
                 && chrome_read_message(buffer)) {
         // Parse the incoming JSON (a simple example without full JSON parsing)
         char *class_name = NULL;
@@ -211,7 +190,7 @@ int main(void) {
         _MEMZERO(buffer, BUFFER_SIZE);
         free(class_name);
         free(jar_path);
-    }
+    }*/
 
 #if defined(_WIN32) || defined(_WIN64)
     // Free the loaded library when done

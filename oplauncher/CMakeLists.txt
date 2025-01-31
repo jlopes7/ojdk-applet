@@ -119,6 +119,7 @@ set(SOURCES
         jvm_launcher.c
         utils.c
         iohelper.c
+        ini_config.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -129,6 +130,7 @@ set(HEADERS
         errcodes.h
         iohelper.h
         chrome_ext_comm.h
+        ini_config.h
 )
 
 # Specific files per platform

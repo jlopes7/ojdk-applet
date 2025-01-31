@@ -11,15 +11,16 @@
 
 #include "utils.h"
 
-#define CL_APPLET_CLASSLOADER	"org/oplauncher/AppletClassLoader"
+#define CL_APPLET_CLASSLOADER	            "org/oplauncher/AppletClassLoader"
+#define CL_APPLET_CLASSLOADER_METHOD        "processLoadAppletOp"
+#define CL_APPLET_CLASSLOADER_PARAMTYPES    "(Ljava/util/List;)Ljava/lang/String;"
 
 #ifdef _WIN32
-    #include <io.h> // For access() on Windows
-    #ifndef F_OK
-        #define F_OK 0 // Test for file existence
-    #endif
+#include <io.h> // For access() on Windows
+#ifndef F_OK
+#define F_OK 0 // Test for file existence
 #endif
-
+#endif
 
 typedef struct {
     JavaVM *jvm;
@@ -29,6 +30,6 @@ typedef struct {
 void get_executable_directory(char *buffer, size_t size);
 returncode_t jvm_launcher_init(const char *class_name);
 void jvm_launcher_terminate(void);
-returncode_t trigger_applet_execution(const char *class_name, const char *jar_file, char **params, int param_count);
+returncode_t trigger_applet_execution(const char *class_name, char **params, int param_count);
 
 #endif

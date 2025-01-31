@@ -1,4 +1,5 @@
 #include "jvm_launcher.h"
+#include "ini_config.h"
 
 #ifdef _WIN32
     #include <windows.h>
@@ -23,8 +24,8 @@ jvm_launcher_t *jvm_launcher;
  */
 returncode_t jvm_launcher_init(const char *class_name) {
 	int res;
-	char exec_dir[BUFFER_SIZE];
-	char policy_path[BUFFER_SIZE];
+	char oplauncher_jar[MAX_PATH];
+	char policy_path[MAX_PATH];
 	JavaVMInitArgs vm_args;
 #if defined(_DEBUG)
 	JavaVMOption options[3];
@@ -37,6 +38,8 @@ returncode_t jvm_launcher_init(const char *class_name) {
 	applet_policy_filepath = malloc(BUFFER_SIZE);
 	jvm_launcher = malloc(sizeof(jvm_launcher_t));
 
+	memset(oplauncher_jar, 0, MAX_PATH);
+	memset(policy_path, 0, MAX_PATH);
 	memset(classpath_option, 0, BUFFER_SIZE);
 	memset(policy_option, 0, BUFFER_SIZE);
 	memset(applet_policy_filepath, 0, BUFFER_SIZE);
@@ -47,10 +50,9 @@ returncode_t jvm_launcher_init(const char *class_name) {
 		return RC_ERR_FAILED_TO_LAUNCHJVM;
 	}
 
-	// Get executable directory and construct paths
-	get_executable_directory(exec_dir, BUFFER_SIZE);
-	snprintf(policy_path, BUFFER_SIZE, "%s/applet.policy", exec_dir);
-	snprintf(exec_dir, BUFFER_SIZE, "%s/%s", exec_dir, getOpLauncherCommanderJarFileName());
+	// Prepare the configuration files
+	read_ini_value(INI_SECTION_JVM, INI_SECTION_JVM_PROP_JARPATH, oplauncher_jar, MAX_PATH);
+	read_ini_value(INI_SECTION_JVM, INI_SECTION_JVM_PROP_POLICYFILE, policy_path, MAX_PATH);
 
 	// Validate paths
 #ifdef _WIN32
@@ -65,7 +67,7 @@ returncode_t jvm_launcher_init(const char *class_name) {
 	}
 
 	// Construct JVM options
-	snprintf(classpath_option, BUFFER_SIZE, "-Djava.class.path=%s", exec_dir);
+	snprintf(classpath_option, BUFFER_SIZE, "-Djava.class.path=%s", oplauncher_jar);
 	snprintf(policy_option, BUFFER_SIZE, "-Djava.security.policy=%s", policy_path);
 
 	options[0].optionString = classpath_option;
@@ -146,7 +148,7 @@ void get_executable_directory(char *buffer, size_t size) {
 }
 
 /**
- * Calls the "loadApplet" method of the "com.oplauncher.AppletClassLoader".
+ * Calls the "processLoadAppletOp" method of the "com.oplauncher.AppletClassLoader".
  *
  * @param class_name The fully qualified name of the class to load (e.g. "com.oplauncher.AppletClassLoader").
  * @param jar_file Path to the jar file that contains the class.
@@ -155,7 +157,7 @@ void get_executable_directory(char *buffer, size_t size) {
  *
  * @return int Status of the function call (0 for success, non-zero for failure).
  */
-returncode_t trigger_applet_execution(const char *class_name, const char *jar_file, char **params, int param_count) {
+returncode_t trigger_applet_execution(const char *class_name, char **params, int param_count) {
 	const int kNumOfParameters = MAXARRAYSIZE;
 
 	if (!jvm_launcher || !jvm_launcher->jvm || !jvm_launcher->env) {
@@ -200,10 +202,13 @@ returncode_t trigger_applet_execution(const char *class_name, const char *jar_fi
 		return RC_ERR_FAILED_CRE_APPCLLOADER;
 	}
 
-	// Find the method ID for "loadApplet"
-	jmethodID loadAppletMethodID = PTR(PTR(jvm_launcher).env)->GetMethodID(env, appletClassLoaderClass, "loadApplet", "(Ljava/util/List;)Ljava/lang/String;");
+	// Find the method ID for "processLoadAppletOp"
+	jmethodID loadAppletMethodID = PTR(PTR(jvm_launcher).env)->GetMethodID(env, appletClassLoaderClass,
+																		   CL_APPLET_CLASSLOADER_METHOD,
+																		   CL_APPLET_CLASSLOADER_PARAMTYPES);
+
 	if (loadAppletMethodID == NULL) {
-		char *errMsg = "Error: Method loadApplet not found.";
+		char *errMsg = "Error: Method processLoadAppletOp not found.";
 		fprintf(stderr, "%s\n", errMsg);
 		sendErrorMessage(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
 
@@ -242,6 +247,7 @@ returncode_t trigger_applet_execution(const char *class_name, const char *jar_fi
 		PTR(PTR(jvm_launcher).jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
 	}
+
 	// iterate all and populate parameters
 	for (int i = 0; i < param_count; i++) {
 		jstring paramString = PTR(PTR(jvm_launcher).env)->NewStringUTF(env, params[i]);
@@ -257,7 +263,7 @@ returncode_t trigger_applet_execution(const char *class_name, const char *jar_fi
 		PTR(PTR(jvm_launcher).env)->CallBooleanMethod(env, parameterList, addMethod, paramString);
 	}
 
-	// Call the loadApplet method
+	// Call the processLoadAppletOp method
 	jstring resultString = (jstring)PTR(PTR(jvm_launcher).env)->CallObjectMethod(env, appletClassLoaderInstance, loadAppletMethodID, parameterList);
 	if (resultString == NULL) {
 		char *errMsg = "Error: Applet trigger returned null.";

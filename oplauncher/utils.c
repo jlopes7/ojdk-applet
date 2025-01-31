@@ -163,21 +163,42 @@ char* replace_with_crlf(const char* input) {
  * @param params    the Applet parameters
  */
 returncode_t parse_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet) {
-    return parse_msg_from_chrome_init(jsonmsg, clName, jpath, NULL, tuplet);
+    //return parse_msg_from_chrome_init(jsonmsg, clName, jpath, NULL, tuplet);
+    // TODO: Implement
+    return 0;
 }
 
 /**
- *  Read the initial Applet parameters coming from Chrome
- * @param className the name of the class
- * @param jarPath   the JAR path to read from
- * @param type      the type to save to the FS, e.g., either Applet class or Jar file
- * @param params    the Applet parameters
+ * Read the initial Applet parameters coming from Chrome
+ * @param jsonmsg
+ * @param op
+ * @param className
+ * @param appletName
+ * @param archiveUrl
+ * @param baseUrl
+ * @param codebase
+ * @param height
+ * @param width
+ * @param posx
+ * @param posy
+ * @param tupletCookies
+ * @param parameters
+ * @return
  */
-returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **clName, char **jpath, char **type, data_tuplet_t *tuplet) {
-    cJSON   *className,
-            *jarPath,
-            *params,
-            *fileType;
+returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **className, char **appletName,
+                                        char **archiveUrl, char **baseUrl, char **codebase,
+                                        char **height, char **width, double *posx, double *posy,
+                                        data_tuplet_t *tupletCookies, data_tuplet_t *parameters) {
+    cJSON   *json_op,
+            *json_className,
+            *json_appletName,
+            *json_archiveUrl,
+            *json_baseUrl,
+            *json_codebase,
+            *json_height,
+            *json_width,
+            *json_posx,
+            *json_posy;
     // Parse the JSON string
     cJSON *json = cJSON_Parse(jsonmsg);
     if (json == NULL) {
@@ -189,38 +210,47 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **clName, char
     }
 
     // Extract the values
-    className = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_CLZZFILE);
-    jarPath = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_JARFILE);
-    fileType = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_FILETYPE);
-    params = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_PARAMETERS);
+    json_op = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_OP);
+    json_className = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_CLZZFILE);
+    json_appletName = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_APPLETNAME);
+    json_archiveUrl = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_JARFILE);
+    json_baseUrl = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_BASEURL);
+    json_codebase = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_CODEBASE);
+    json_height = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_HEIGHT);
+    json_width = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_WIDTH);
+    json_posx = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_POSX);
+    json_posy = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_POSY);
 
-    // Print the extracted values
-    if (cJSON_IsString(className) && (className->valuestring != NULL)) {
-        PTR(clName) = strdup(className->valuestring);
+    // Gets the extracted values
+    if (cJSON_IsString(json_op) && (json_op->valuestring != NULL)) {
+        PTR(op) = strdup(json_op->valuestring);
     }
-    if (cJSON_IsString(jarPath) && (jarPath->valuestring != NULL)) {
-        PTR(jpath) = strdup(jarPath->valuestring);
+    if (cJSON_IsString(json_className) && (json_className->valuestring != NULL)) {
+        PTR(className) = strdup(json_className->valuestring);
     }
-    if ( type != NULL && cJSON_IsString(fileType) && (fileType->valuestring != NULL) ) {
-        PTR(type) = strdup(fileType->valuestring);
+    if (cJSON_IsString(json_appletName) && (json_appletName->valuestring != NULL)) {
+        PTR(appletName) = strdup(json_appletName->valuestring);
     }
-    // Process the params array
-    if (params != NULL && cJSON_IsArray(params)) {
-        cJSON *param = NULL;
-
-        const int array_size = cJSON_GetArraySize(params);
-        for (int i = 0; i < array_size; i++) {
-            cJSON *param = cJSON_GetArrayItem(params, i); // Get each object in the array
-            if (cJSON_IsObject(param)) {
-                cJSON *key_value = NULL;
-                cJSON_ArrayForEach(key_value, param) { // Iterate over key-value pairs in the object
-                    if (cJSON_IsString(key_value)) {
-                        tuplet[i].name  = strdup(key_value->string);
-                        tuplet[i].value = strdup(key_value->valuestring);
-                    }
-                }
-            }
-        }
+    if (cJSON_IsString(json_archiveUrl) && (json_archiveUrl->valuestring != NULL)) {
+        PTR(archiveUrl) = strdup(json_archiveUrl->valuestring);
+    }
+    if (cJSON_IsString(json_baseUrl) && (json_baseUrl->valuestring != NULL)) {
+        PTR(baseUrl) = strdup(json_baseUrl->valuestring);
+    }
+    if (cJSON_IsString(json_codebase) && (json_codebase->valuestring != NULL)) {
+        PTR(codebase) = strdup(json_codebase->valuestring);
+    }
+    if (cJSON_IsString(json_height) && (json_height->valuestring != NULL)) {
+        PTR(height) = strdup(json_height->valuestring);
+    }
+    if (cJSON_IsString(json_width) && (json_width->valuestring != NULL)) {
+        PTR(width) = strdup(json_width->valuestring);
+    }
+    if (cJSON_IsNumber(json_posx)) {
+        PTR(posx) = json_posx->valuedouble;
+    }
+    if (cJSON_IsNumber(json_posy)) {
+        PTR(posy) = json_posy->valuedouble;
     }
 
     // Clean up
@@ -234,9 +264,22 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **clName, char
  */
 int chrome_read_message(char *buffer) {
     unsigned int message_length;
+#if defined(_DEBUG)
+    FILE *file = fopen("test_input.bin", "rb");
+    if (!file) {
+        perror("Failed to open test_input.bin");
+        return 1;
+    }
+    printf("Reading input from test_input.bin...\n");
+
+    if ( !fread(&message_length, 4, 1, file) ) {
+        return 0; // End of input
+    }
+#else
     if ( !fread(&message_length, 4, 1, stdin) ) {
         return 0; // End of input
     }
+#endif
 
     if ( message_length > BUFFER_SIZE - 1 ) {
         char *errMsg = "Message too large. Not supported";
@@ -245,7 +288,12 @@ int chrome_read_message(char *buffer) {
 
         return RC_ERR_CHROME_MESSAGE_TO_LARGE;
     }
+
+#if defined(_DEBUG)
+    if ( !fread(buffer, message_length, 1, file) ) {
+#else
     if ( !fread(buffer, message_length, 1, stdin) ) {
+#endif
         char *errMsg = "Failed to read message";
         fprintf(stderr, "%s\n", errMsg);
         sendErrorMessage(errMsg,RC_ERR_CHROME_FAILED_MESSAGE );

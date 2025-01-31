@@ -1,5 +1,7 @@
 #include "oplauncher.h"
 
+#include "jvm_launcher.h"
+
 extern char *applet_policy_filepath;
 
 // Function to launch the JVM (cross-platform)
@@ -7,6 +9,33 @@ void launch_jvm(const char *class_name, const char *jar_path, const char *params
     char command[BUFFER_SIZE];
 
     // TODO: Implement
+}
+
+
+returncode_t load_applet(const char *op, const char *className, const char *appletName, const char *archiveUrl,
+						 const char *baseUrl, const char *codebase, const char *height, const char *width,
+						 const char *cookies, const char *parameters, double posx, double posy) {
+	int param_counter = 0;
+	char additional_params[BUFFER_SIZE];
+	char *applet_params[OPLAUNCHER_PROTO_MAXPARAMS];
+	memset(applet_params, 0, OPLAUNCHER_PROTO_MAXPARAMS * sizeof(char));
+
+	applet_params[param_counter++] = op;
+	applet_params[param_counter++] = baseUrl;
+	applet_params[param_counter++] = codebase;
+	applet_params[param_counter++] = archiveUrl;
+	applet_params[param_counter++] = appletName;
+	applet_params[param_counter++] = className;
+
+	memset(additional_params, 0, BUFFER_SIZE * sizeof(char));
+	/// Add the additional parameters
+	snprintf(additional_params, BUFFER_SIZE, "width=%s;height=%s;posx=%.4f;posy=%.4f", width, height, posx, posy);
+	if ( parameters != NULL ) {
+		snprintf(additional_params, BUFFER_SIZE, "%s;%s", parameters, additional_params);
+	}
+	applet_params[param_counter++] = additional_params;
+
+	return trigger_applet_execution(className, applet_params, param_counter );
 }
 
 /**
