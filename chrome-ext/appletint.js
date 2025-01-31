@@ -1,5 +1,5 @@
 const OP_LOAD = "load_applet";
-const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_reponse";
+const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 const APPLET_HTML_CONTENT = `
 <html>
   	<head>

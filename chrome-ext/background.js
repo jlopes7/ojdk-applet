@@ -1,6 +1,6 @@
 const OP_LOAD = "load_applet";
 const NATIVE_SERVICE = "org.oplauncher.applet_service";
-const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_reponse";
+const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 const FETCH_REMOTEAPPLET = false;
 
 /**
@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.info("Option 1 (fetch remote on Chrome Extension) was selected");
 
             // Extract the applet details from the message
-            const { archiveUrl, codeUrl } = message.data;
+            const { archiveUrl, codeUrl } = message;
 
             // Determine which file to download: JAR file or class file
             let downloadUrl = null;
@@ -55,8 +55,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     };
 
                     send2OPLauncher(messageToNative, (resp, port) => {
-                        // Send response back to the content script
-                        chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                        if (sender && sender.tab && sender.tab.id) {
+                            // Send response back to the content script
+                            chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                        }
+                        else {
+                            console.warn("Sender tab ID is missing. Cannot send message back.");
+                        }
                     });
                 })
                 .catch(error => {
@@ -65,26 +70,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         /*
          * Option 2: The applet sourcebase will be dealt by the OPLauncher Pilot
+         * -> This is the option that is currently Active!
          */
         else {
             console.info("Option 2 (Applet bits is resolved by OPLauncher) was selected");
 
             send2OPLauncher(message, (resp, port) => {
-                // Send response back to the content script
-                chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                if (sender && sender.tab && sender.tab.id) {
+                    // Send response back to the content script
+                    chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                }
+                else {
+                    console.warn("Sender tab ID is missing. Cannot send message back.");
+                }
             });
             // TODO: Implement
         }
     }
 });
 
+/**
+ * Sends a message to OPLauncher
+ * @param messageToNative   the applet computed message
+ * @param callback          the callback function. Called when the applet responds back to the Browser
+ * @param callbackErr       the error callback function. Called when something bad happened
+ */
 function send2OPLauncher(messageToNative, callback, callbackErr) {
     const port = chrome.runtime.connectNative(NATIVE_SERVICE);
 
-    handlePortDisconnect = function() {
+    function handlePortDisconnect() {
         console.error("Native host (OPLauncher) was disconnected.");
         callbackErr();
-    };
+    }
 
     port.postMessage(messageToNative); // Send applet details and file content to native host
 
