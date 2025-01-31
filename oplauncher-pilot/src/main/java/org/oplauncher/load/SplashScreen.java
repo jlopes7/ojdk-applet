@@ -14,6 +14,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static java.awt.Font.BOLD;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SplashScreen extends JWindow {
     static public final SplashScreen instance = new SplashScreen();
@@ -80,6 +81,12 @@ public class SplashScreen extends JWindow {
             LOGGER.info("Closing the splash screen...");
             // Stop the scheduled updates
             getExecutorService().shutdown();
+            try {
+                while (!getExecutorService().awaitTermination(2l, SECONDS)) ;
+            }
+            catch (InterruptedException e) {
+                LOGGER.warn("Interrupted while waiting for the splash screen to close.", e);
+            }
 
             SwingUtilities.invokeLater(() -> {
                 setVisible(false);
@@ -107,7 +114,7 @@ public class SplashScreen extends JWindow {
                 getStatusLabel().setText(loadingText);
                 _dotCount = (_dotCount % NUM_DOTS) + 1;  // Cycle through 1, 2, 3...,NUM_DOTS dots
             });
-        }, 0, 1, TimeUnit.SECONDS);
+        }, 0, 1, SECONDS);
     }
 
     protected JLabel getImageLabel() {
