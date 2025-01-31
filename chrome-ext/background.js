@@ -2,6 +2,21 @@ const OP_LOAD = "load_applet";
 const NATIVE_SERVICE = "org.oplauncher.applet_service";
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 const FETCH_REMOTEAPPLET = false;
+const DEBUG = false;
+
+if (DEBUG) {
+    /**
+     * Testing...
+     */
+    chrome.runtime.onInstalled.addListener(() => {
+        console.debug("Testing Native Messaging...");
+        const port = chrome.runtime.connectNative("org.oplauncher.applet_service");
+
+        port.onDisconnect.addListener((e) => {
+            console.error("Failed to connect to native app", e);
+        });
+    });
+}
 
 /**
  * Applet background service, used to communicate with the Applet external service
@@ -84,7 +99,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     console.warn("Sender tab ID is missing. Cannot send message back.");
                 }
             });
-            // TODO: Implement
         }
     }
 });
@@ -98,15 +112,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function send2OPLauncher(messageToNative, callback, callbackErr) {
     const port = chrome.runtime.connectNative(NATIVE_SERVICE);
 
-    function handlePortDisconnect() {
-        console.error("Native host (OPLauncher) was disconnected.");
-        callbackErr();
-    }
-
+    console.info("About to send a message to OPLauncher:", messageToNative);
     port.postMessage(messageToNative); // Send applet details and file content to native host
 
     port.onMessage.addListener((response) => {
-        console.log("Response from native host:", response);
+        console.info("Response from native host:", response);
 
         // Calls the return function (callback)
         callback(response, port);
@@ -114,7 +124,10 @@ function send2OPLauncher(messageToNative, callback, callbackErr) {
 
     // Ensure onDisconnect is only added once
     if (!port.onDisconnect.hasListener(handlePortDisconnect)) {
-        port.onDisconnect.addListener(handlePortDisconnect);
+        port.onDisconnect.addListener(() => {
+            console.error("Native host (OPLauncher) was disconnected.");
+            callbackErr(new Error("Connection failed"));
+        });
     }
 }
 

@@ -4,15 +4,17 @@ const APPLET_HTML_CONTENT = `
 <html>
   	<head>
   	<style>
-    	body { 
-			font-family: Verdana, sans-serif; 
-			font-size: 12px; 
-			display: flex; 
-			justify-content: center; 
-			align-items: center; 
-			width: 100%; 
-			height: 100%;
-			text-align: center;
+    	html, body { 
+			width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Verdana, sans-serif;
+            font-weight: bold;
+            color: darkblue;
+            font-size: 14px;
+            overflow: hidden; /* Remove scrollbars */
         }
     </style>
     </head>
@@ -36,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		// Construct the full base URL
 		const baseUrl = getBasePath(window.location.href);
 
-		console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase });
+		console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase, appletName, width, height });
 
 		// Create an iframe replacement for the applet
 		const iframe = document.createElement("iframe");
@@ -61,15 +63,22 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 		const parametersStr = paramArray.join(";");
 
-		// Fetch cookies for the current domain (this is needed to maintain the session with AppServers if necessary)
-		chrome.cookies.getAll({ url: window.location.origin }, function (cookies) {
-			/**
-			 * ----------------------
-			 *  OP: LOAD THE APPLET
-			 * ----------------------
-			 * --> Send cookies along with applet details to the background script
- 			 */
-			chrome.runtime.sendMessage({
+		let cookies = []
+		if (chrome.cookies) {
+			cookies = chrome.cookies.getAll({url: window.location.origin});
+		}
+
+		if (cookies.length === 0) {
+			console.warn('No cookies found for', window.location.origin);
+		}
+		else {
+			console.info("Cookies found in the for the domain %s:", window.location.origin, cookies);
+		}
+
+		/// We have to wait a bit for the iframe to be rendered
+		setTimeout(() => {
+			const position = getAppletElementPosition(iframe);
+			const requestMsg = {
 				op: 		OP_LOAD,
 				className: 	className,
 				archiveUrl: archiveUrl,
@@ -78,10 +87,21 @@ document.addEventListener("DOMContentLoaded", () => {
 				baseUrl: 	baseUrl,
 				width: 		width,
 				height: 	height,
+				posx: 		position.x,
+				posy: 		position.y,
 				parameters: parametersStr,
-				cookies: 	cookies
-			});
-		});
+				cookies: 	cookies.join(";")
+			}
+
+			console.info("About to send the request to backend port", requestMsg);
+			/**
+			 * ----------------------
+			 *  OP: LOAD THE APPLET
+			 * ----------------------
+			 * --> Send cookies along with applet details to the background script
+			 */
+			chrome.runtime.sendMessage(requestMsg);
+		}, 100); // delay for 100ms to ensure the page is loaded
 
 		// TODO: Additional operations go here!
 	});
@@ -94,6 +114,19 @@ chrome.runtime.onMessage.addListener((message) => {
 		// TODO: Implement
 	}
 });
+
+/**
+ * Returns the correct Applet position, where it supposed to be rendered in the screen
+ * @param element	the DOM element to be instrospected, e.g., &lt applet / &gt
+ * @returns {{x: number, y: number}}
+ */
+function getAppletElementPosition(element) {
+	const rect = element.getBoundingClientRect();
+	const x = rect.left + window.scrollX;
+	const y = rect.top + window.scrollY;
+
+	return { x, y };
+}
 
 /**
  * Returns the base URL of where the applet should be loaded from
