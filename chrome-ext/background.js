@@ -1,8 +1,32 @@
 const OP_LOAD = "load_applet";
 const NATIVE_SERVICE = "org.oplauncher.applet_service";
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
+const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
 const FETCH_REMOTEAPPLET = false;
 const DEBUG = false;
+
+const APPLET_HTML_CONTENT_CLOSED = `
+<html>
+  	<head>
+  	<style>
+    	html, body { 
+			width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Verdana, sans-serif;
+            font-weight: bold;
+            color: darkblue;
+            font-size: 14px;
+            overflow: hidden; /* Remove scrollbars */
+            background: bisque;
+        }
+    </style>
+    </head>
+    <body>OJDK Applet Launcher finished</body>
+</html>
+`;
 
 if (DEBUG) {
     /**
@@ -97,6 +121,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
                 else {
                     console.warn("Sender tab ID is missing. Cannot send message back.");
+                }
+            }, function(e) {
+                const iframe = document.getElementById(OPLAUNCHER_IFRAME_ID);
+                if (iframe) {
+                    iframe.srcdoc = APPLET_HTML_CONTENT_CLOSED;
                 }
             });
         }

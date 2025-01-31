@@ -1,6 +1,8 @@
 const OP_LOAD = "load_applet";
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
-const APPLET_HTML_CONTENT = `
+
+const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
+const APPLET_HTML_CONTENT_OPEN = `
 <html>
   	<head>
   	<style>
@@ -15,6 +17,7 @@ const APPLET_HTML_CONTENT = `
             color: darkblue;
             font-size: 14px;
             overflow: hidden; /* Remove scrollbars */
+            background: bisque;
         }
     </style>
     </head>
@@ -46,9 +49,10 @@ document.addEventListener("DOMContentLoaded", () => {
 		iframe.height = height;
 		iframe.style.border = "none";
 		iframe.style.backgroundColor = "white";
+		iframe.id = OPLAUNCHER_IFRAME_ID;
 
 		// Set the iframe content dynamically
-		iframe.srcdoc = APPLET_HTML_CONTENT;
+		iframe.srcdoc = APPLET_HTML_CONTENT_OPEN;
 		// Replace the applet with the iframe
 		applet.replaceWith(iframe);
 
