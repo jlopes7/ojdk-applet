@@ -13,6 +13,7 @@
         <maven.compiler.target>8</maven.compiler.target>
         <maven.compiler.plugin>3.13.0</maven.compiler.plugin>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <oplauncher.home.dir>${user.home}/.oplauncher</oplauncher.home.dir>
     </properties>
 
     <dependencies>
@@ -69,7 +70,7 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>7.8.0</version>
+            <version>6.14.3</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -98,6 +99,11 @@
                 <directory>src/test/resources</directory>
                 <includes>
                     <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                    <include>**/*.png</include>
+                    <include>**/VERSION</include>
+                    <include>**/LICENSE</include>
+                    <include>**/CONSOLE_TEXT</include>
                 </includes>
                 <excludes>
                     <exclude>**/*.tmp</exclude>
@@ -120,7 +126,7 @@
                         </goals>
                         <configuration>
                             <outputDirectory>
-                                ${project.build.directory}/java-libs
+                                ${oplauncher.home.dir}/libs
                             </outputDirectory>
                         </configuration>
                     </execution>
@@ -131,7 +137,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version> <!-- Use the latest stable version -->
+                <version>3.0.0-M7</version>
                 <configuration>
                     <suiteXmlFiles>
                         <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
@@ -154,15 +160,67 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.1</version> <!-- Added a specific version for consistency -->
+                <version>3.4.1</version>
                 <configuration>
                     <archive>
                         <manifest>
-                            <addClasspath>true</addClasspath>
-                            <classpathPrefix>${project.build.directory}java-libs/</classpathPrefix>
+                            <addClasspath>false</addClasspath>
+                            <!--classpathPrefix>${oplauncher.home.dir}/libs</classpathPrefix-->
                         </manifest>
                     </archive>
                 </configuration>
+            </plugin>
+            <!--plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.oplauncher.AppletClassLoader</mainClass>
+                        </manifest>
+                    </archive>
+                    <finalName>${project.artifactId}-${project.version}</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin-->
+            <!-- Copy the generated Jar file to the same place where all the other libs are -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${oplauncher.home.dir}/libs</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>*.jar</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                            <overwrite>true</overwrite>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
