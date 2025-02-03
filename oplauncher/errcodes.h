@@ -32,5 +32,10 @@
 #define RC_ERR_IO_CREATEDIR_FAILED          7028
 #define RC_ERR_MSIO_RETRIEVAL_FAILED        7029
 #define RC_ERR_MISSING_ENV_VARIABLE         7030
+#define RC_ERR_IO_FILENOTFOUND              7031
+#define RC_ERR_INVALID_PARAMETER            7032
+#define RC_ERR_INVALID_PATH                 7033
+#define RC_ERR_NOT_INITIALIZED              7034
+#define RC_ERR_IO_OPEN_FAILED               7035
 
 #endif //_ERRCODES_H

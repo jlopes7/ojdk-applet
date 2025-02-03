@@ -3,11 +3,10 @@
 #include "jvm_launcher.h"
 #include "utils.h"
 #include "oplauncher.h"
-#include "iohelper.h"
+#include "logging.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-#include "ui/win_splash.h"
-#include "ui/win_java_console.h"
+#include "ui/win_tray_ctrl.h"
 #else
 #include "ui/mac_splash.h"
 #include "ui/mac_java_console.h"
@@ -22,7 +21,7 @@ volatile BOOL End_OpLauncher_Process = FALSE;
  * Signal handler function
  */
 void signal_handler(int sig) {
-    fprintf(stderr, "\nReceived signal %d, terminating JVM...\n", sig);
+    logmsg(LOGGING_NORMAL, "Received signal %d, terminating JVM...", sig);
 
     if (jvm_launcher && jvm_launcher->jvm) {
         // Call DestroyJavaVM to clean up the JVM
@@ -44,7 +43,7 @@ BOOL WINAPI consoleCtrlHandler(DWORD ctrlType) {
         case CTRL_LOGOFF_EVENT: // Handle user logoff (only in services)
         case CTRL_SHUTDOWN_EVENT: // Handle system shutdown (only in services)
             if ( jvm_launcher && PTR(jvm_launcher).jvm && PTR(jvm_launcher).env ) {
-                fprintf(stderr, "[FINISH OPLAUNCHER] Exit code: %ld", ctrlType);
+                logmsg(LOGGING_ERROR, "[FINISH OPLAUNCHER] Exit code: %ld", ctrlType);
                 // Call DestroyJavaVM to clean up the JVM
                 jvm_launcher_terminate();
             }
@@ -59,7 +58,8 @@ BOOL WINAPI consoleCtrlHandler(DWORD ctrlType) {
  * Code Main Execution
  */
 #if defined(_WIN32) || defined(_WIN64)
-int main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+//int main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) { // OLD testing cmd version
     if (!hInstance) {
         hInstance = GetModuleHandle(NULL);
     }
@@ -70,13 +70,34 @@ int main(void) {
     char cache_path[MAX_PATH];
     int rc = EXIT_SUCCESS;
 
+    // Logging...
+    rc = logging_init();
+    if ( !_IS_SUCCESS(rc) ) {
+        sendErrorMessage("Could not initialize the log mechanism", rc);
+        return rc;
+    }
+
 #if defined(_WIN32) || defined(_WIN64)
     char javaHome[MAX_PATH];
     GetEnvironmentVariable("OPLAUNCHER_JAVA_HOME", javaHome, MAX_PATH);
 
+    logmsg(LOGGING_NORMAL, "Creating the OPLauncher tray icon");
+    // Tray initialization
+    WNDCLASS wc = { 0 };
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = "TrayIconClass";
+
+    RegisterClass(&wc);
+    HWND hWnd = CreateWindow("TrayIconClass", "Tray App", WS_OVERLAPPEDWINDOW, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
+
+    // Add the tray icon
+    AddTrayIcon(hWnd);
+
     /*
      * Step 1: Service initialization...
      */
+    logmsg(LOGGING_NORMAL, "Initializing all Java libraries");
     // Retrieve the OPLAUNCHER_JAVA_HOME environment variable
     if ( resolveJNIDllDepsOnEnvVar("jre/bin/server") != EXIT_SUCCESS ) {
         return EXIT_FAILURE;
@@ -94,24 +115,19 @@ int main(void) {
     snprintf(javaHome, MAX_PATH, "%s/jre/bin/server/jvm.dll", javaHome);
     HMODULE hJvm = LoadLibraryEx(javaHome, NULL, LOAD_LIBRARY_SEARCH_USER_DIRS);
     if (!hJvm) {
-        fprintf(stderr, "Error: Failed to load jvm.dll. Error code: %lu\n", GetLastError());
+        logmsg(LOGGING_ERROR, "Error: Failed to load jvm.dll. Error code: %lu", GetLastError());
         return EXIT_FAILURE;
     }
 
     // Set the custom control handler
     if (!SetConsoleCtrlHandler(consoleCtrlHandler, TRUE)) {
-        fprintf(stderr, "Error: Could not set control handler\n");
+        logmsg(LOGGING_ERROR, "Error: Could not set control handler");
         return EXIT_FAILURE;
     }
-#else
-    // Splash screen for initializing the OJDK Plugin
-    //show_splash_screen();
-
-    // Start the Java Console
-    show_console();
-    print_hello();
 #endif
     _MEMZERO(buffer, BUFFER_SIZE);
+
+    logmsg(LOGGING_NORMAL, "Creating the JVM instance");
     /*
      * Step 2: Initializes the JVM
      */
@@ -120,6 +136,7 @@ int main(void) {
         sendErrorMessage("Could not launch the JVM", rc);
     }
 
+    logmsg(LOGGING_NORMAL, "Configuring the application port cache");
     /*
      * Step 3: Prepare the communication with the OPlauncher Pilot
      */
@@ -128,6 +145,7 @@ int main(void) {
     // Create cache directory if it doesn't exist
     create_cache_directory(cache_path);
 
+    logmsg(LOGGING_NORMAL, "Waiting from Chrome to parse the first native message (load_applet)");
     // First chrome message is to prepare and load the applet
     chrome_read_message(buffer);
     // Parse the incoming JSON (a simple example without full JSON parsing)
@@ -136,7 +154,8 @@ int main(void) {
     rc = parse_msg_from_chrome_init(buffer, &op, &class_name, &applet_name, &archive_url, &base_url, &codebase, &height, &width, &posx, &posy, NULL, NULL);
 
     if (rc != EXIT_SUCCESS) {
-        sendErrorMessage("Could not bits from the Applet class or Jar file", rc);
+        logmsg(LOGGING_ERROR, "Could not parse the native message from chrome init");
+        sendErrorMessage("Error: Could not parse the native message from chrome init", rc);
         free(op);
         free(class_name);
         free(applet_name);
@@ -145,8 +164,12 @@ int main(void) {
         free(codebase);
         free(height);
         free(width);
+        logging_end();
         return EXIT_FAILURE;
     }
+
+    logmsg(LOGGING_NORMAL, "Fields sent by Chrome: OP[%s], CLASSNAME[%s], APPLETNAME[%s], ARCHIVE[%s], CODEBASE[%s], HEIGHT[%s], WIDTH[%s], POSX[%.2f], POSY[%.2f]",
+            op, class_name, applet_name, archive_url, codebase, height, width, posx, posy);
 
     /*
      * Step 3.1: Signal processing (optional step)
@@ -157,6 +180,7 @@ int main(void) {
     signal(SIGTERM, signal_handler); // Handle termination signal
 #endif
 
+    logmsg(LOGGING_NORMAL, "Loading the Applet: %s", class_name);
     /*
      * Step 3.2: Trigger the applet execution
      */
@@ -165,18 +189,18 @@ int main(void) {
     /*
      * Step 4: Trigger the dispatcher service
      */
-    /*memset(buffer, 0, BUFFER_SIZE);
+    _MEMZERO(buffer, BUFFER_SIZE);
     while (!End_OpLauncher_Process //Controls either if the process should end naturally or not
-                && chrome_read_message(buffer)) {
+                && _IS_SUCCESS(chrome_read_message(buffer))) {
         // Parse the incoming JSON (a simple example without full JSON parsing)
-        char *class_name = NULL;
+        /*char *class_name = NULL;
         char *jar_path = NULL;
 
         data_tuplet_t params[MAXARRAYSIZE];
         _MEMZERO(params, sizeof(params));
 
         rc = parse_msg_from_chrome(buffer, &class_name, &jar_path, params);
-        if (rc != EXIT_SUCCESS) {
+        if ( !_ISUCCESS(rc) ) {
             sendErrorMessage("Could not read the message sent from chrome", rc);
         }
 
@@ -189,9 +213,14 @@ int main(void) {
 
         _MEMZERO(buffer, BUFFER_SIZE);
         free(class_name);
-        free(jar_path);
-    }*/
+        free(jar_path);*/
+        // TODO: Implement
+        SLEEP_S(1);
+    }
 
+    logmsg(LOGGING_NORMAL, "Terminating the launcher...");
+    // End logging...
+    logging_end();
 #if defined(_WIN32) || defined(_WIN64)
     // Free the loaded library when done
     FreeLibrary(hJvm);

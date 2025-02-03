@@ -1,5 +1,7 @@
 #include "ini_config.h"
 
+#include <logging.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,8 +21,9 @@ void get_config_path(char *config_path, size_t size) {
     char home_path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, home_path))) {
         snprintf(config_path, size, "%s\\.oplauncher\\%s", home_path, INI_FILENAME);
-    } else {
-        fprintf(stderr, "Error: Failed to get home directory.\n");
+    }
+    else {
+        logmsg(LOGGING_ERROR, "Failed to get home directory.");
         exit(RC_ERR_MISSING_ENV_VARIABLE);
     }
 #else
@@ -30,7 +33,7 @@ void get_config_path(char *config_path, size_t size) {
         home = pw ? pw->pw_dir : NULL;
     }
     if (!home) {
-        fprintf(stderr, "Error: HOME not set.\n");
+        logmsg(LOGGING_ERROR, "Failed to get home directory.");
         exit(1);
     }
     snprintf(config_path, size, "%s/.oplauncher/%s", home, INI_FILENAME);
@@ -44,7 +47,7 @@ void ensure_ini_exists() {
     // Just open to verify if the file exists
     FILE *file = fopen(config_path, "r");
     if (!file) {
-        printf("INI file not found, copying default template...\n");
+        logmsg(LOGGING_NORMAL, "INI file not found, copying default template...");
         copy_template_ini(config_path);
     }
     else {
@@ -90,13 +93,13 @@ void copy_template_ini(const char *dest_path) {
 
     FILE *src = fopen(template_path, "r");
     if (!src) {
-        fprintf(stderr, "Error: Template INI file not found at %s\n", template_path);
+        logmsg(LOGGING_ERROR, "Template INI file not found at %s", template_path);
         return;
     }
 
     FILE *dest = fopen(dest_path, "w");
     if (!dest) {
-        fprintf(stderr, "Error: Failed to create INI file at %s\n", dest_path);
+        logmsg(LOGGING_ERROR, "Error: Failed to create INI file at %s", dest_path);
         fclose(src);
         return;
     }
@@ -110,7 +113,7 @@ void copy_template_ini(const char *dest_path) {
 
     fclose(src);
     fclose(dest);
-    printf("INI file created: %s\n", dest_path);
+    logmsg(LOGGING_NORMAL, "Successfully copied the template INI file to: %s", dest_path);
 }
 
 void read_ini_value(const char *section, const char *key, char *output, size_t output_size) {
@@ -123,15 +126,16 @@ void read_ini_value(const char *section, const char *key, char *output, size_t o
 
     get_config_path(config_path, BUFFER_SIZE);
 
+    logmsg(LOGGING_NORMAL, "Reading INI configuration [SECT(%s)->KEY(%s)] from the file: %s", section, key, config_path);
 #if defined(_WIN32) || defined(_WIN64)
     errno_t err = fopen_s(&file, config_path, "r");
     if( err != 0 ) {
-        fprintf(stderr, "The file %s could not be opened. Error code: %d\n", config_path, err);
+        logmsg(LOGGING_ERROR, "The file %s could not be opened. Error code: %d", config_path, err);
     }
 #else
     file = fopen(config_path, "r");
     if (!file) {
-        fprintf(stderr, "Error: Could not open INI file: %s\n", config_path);
+        logmsg(LOGGING_ERROR, "Could not open INI file: %s", config_path);
         return;
     }
 #endif

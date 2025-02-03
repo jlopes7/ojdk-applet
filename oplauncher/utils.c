@@ -9,9 +9,16 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <shlobj.h> // For SHGetFolderPath
+#include <corecrt_io.h>
+#else
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <pwd.h>
 #endif
 
 #include <direct.h> // For _mkdir
+#include <logging.h>
 
 returncode_t create_nested_dirs(const char *);
 
@@ -36,10 +43,12 @@ int sendErrorMessage(const char* errorMsg, const int errorCode) {
     // Convert cJSON object to a JSON-formatted string
     char *jsonString = cJSON_PrintUnformatted(root);
     if (jsonString == NULL) {
-        fprintf(stderr, "Failed to print JSON\n");
+        logmsg(LOGGING_ERROR, "Failed to print JSON");
         cJSON_Delete(root);
         return EXIT_FAILURE;
     }
+
+    logmsg(LOGGING_ERROR, "About to send the error JSON to Chrome:\n%s", jsonString);
 
     // Print the JSON string
     chrome_send_message(jsonString);
@@ -63,7 +72,7 @@ int resolveJNIDllDepsOnEnvVar(const char *relativePath) {
     DWORD length = GetEnvironmentVariable("OPLAUNCHER_JAVA_HOME", javaHome, MAX_PATH);
 
     if (length == 0) {
-        fprintf(stderr, "Error: OPLAUNCHER_JAVA_HOME environment variable is not set or invalid.\n");
+        logmsg(LOGGING_ERROR, "OPLAUNCHER_JAVA_HOME environment variable is not set or invalid");
         return RC_ERR_MISSING_OPLAUCH_ENVVAR;
     }
 
@@ -74,14 +83,14 @@ int resolveJNIDllDepsOnEnvVar(const char *relativePath) {
     // Use AddDllDirectory to add the Java bin directory
     HMODULE kernel32 = GetModuleHandle("kernel32.dll");
     if (!kernel32) {
-        fprintf(stderr, "Error: Unable to load kernel32.dll\n");
+        logmsg(LOGGING_ERROR, "Unable to load kernel32.dll");
         return RC_ERR_FILE_LOADSYSLIBS;
     }
 
     typedef BOOL(WINAPI * AddDllDirectoryProc)(PCWSTR);
     AddDllDirectoryProc addDllDirectory = (AddDllDirectoryProc)GetProcAddress(kernel32, "AddDllDirectory");
     if (!addDllDirectory) {
-        fprintf(stderr, "Error: AddDllDirectory is not supported on this version of Windows.\n");
+        logmsg(LOGGING_ERROR, "AddDllDirectory is not supported on this version of Windows.");
         return RC_ERR_FILE_LOADSYSLIBS;
     }
 
@@ -89,15 +98,41 @@ int resolveJNIDllDepsOnEnvVar(const char *relativePath) {
     MultiByteToWideChar(CP_ACP, 0, libPath, -1, wBinPath, MAX_PATH);
 
     if (!AddDllDirectory(wBinPath)) {
-        fprintf(stderr, "Error: Failed to add DLL directory %s\n", libPath);
+        logmsg(LOGGING_ERROR, "Failed to add DLL directory %s", libPath);
         return RC_ERR_FILE_LOADSYSLIBS;
     }
 
-    fprintf(stderr, "DLL directory added: %s\n", libPath);
+    logmsg(LOGGING_NORMAL, "Successfully added DLL directory %s", libPath);
 
     return EXIT_SUCCESS;
 }
 #endif
+
+returncode_t get_directory_from_path(const char *file_path, char *dir_path, size_t size) {
+    if (!file_path || !dir_path) {
+        return RC_ERR_INVALID_PARAMETER;
+    }
+
+    // Copy input path to a temporary buffer (to avoid modifying original)
+    char temp_path[MAXPATHLEN];
+    strncpy(temp_path, file_path, sizeof(temp_path) - 1);
+    temp_path[sizeof(temp_path) - 1] = '\0';
+
+    // Find the last occurrence of the path separator
+    char *last_sep = strrchr(temp_path, PATH_SEPARATOR[0]);
+    if (!last_sep) {
+        return RC_ERR_INVALID_PATH;
+    }
+
+    // Terminate string at the last separator to extract directory
+    *last_sep = '\0';
+
+    // Copy the directory path to output
+    strncpy(dir_path, temp_path, size - 1);
+    dir_path[size - 1] = '\0';
+
+    return EXIT_SUCCESS;
+}
 
 void print_hello() {
     // Get the current time
@@ -138,7 +173,7 @@ char* replace_with_crlf(const char* input) {
     // Allocate memory for the new string
     char* output = (char*)malloc(newLen + 1); // +1 for the null terminator
     if (!output) return NULL;
-    memset(output, 0, newLen + 1);
+    _MEMZERO(output, newLen + 1);
 
     // Construct the new string
     size_t j = 0;
@@ -204,7 +239,7 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
     if (json == NULL) {
         const char *error_ptr = cJSON_GetErrorPtr();
         if (error_ptr != NULL) {
-            fprintf(stderr, "Error before: %s\n", error_ptr);
+            logmsg(LOGGING_ERROR, "JSON Parse Error: %s", error_ptr);
         }
         return RC_ERR_COULDNOT_PARSEJSON;
     }
@@ -260,6 +295,72 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
 }
 
 /**
+ * List and formats all JAR files in a specific folder to a CLASSPATH
+ * representation string to be used by to load all necessary classes in the JVM
+ *
+ * @param directory the directory to search for JAR libraries
+ * @param output The output formatted classpath
+ * @param size The size of the path
+ * @return the error code if something bad happens, "0" otherwise
+ */
+returncode_t format_get_classpath(const char *directory, char **output, size_t size) {
+    PTR(output) = malloc(size * sizeof(char));
+    _MEMZERO(PTR(output), size * sizeof(char));
+    snprintf(PTR(output), size, ".%s", PATH_DELIMITER); // starts with .;
+
+#if defined(_WIN32) || defined(_WIN64)
+    WIN32_FIND_DATA findFileData;
+    char searchPath[MAX_PATH];
+    _MEMZERO(searchPath, MAX_PATH);
+    snprintf(searchPath, MAX_PATH, "%s\\*.jar", directory);
+
+    HANDLE hFind = FindFirstFile(searchPath, &findFileData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        logmsg(LOGGING_ERROR, "No JAR files found: in %s\n", directory);
+        return RC_ERR_IO_FILENOTFOUND;
+    }
+
+    do {
+        if (!(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+            strncat(PTR(output), directory, size - strlen(PTR(output)) - 1);
+            strncat(PTR(output), PATH_SEPARATOR, size - strlen(PTR(output)) - 1);
+            strncat(PTR(output), findFileData.cFileName, size - strlen(PTR(output)) - 1);
+            strncat(PTR(output), PATH_DELIMITER, size - strlen(PTR(output)) - 1);
+        }
+    }
+    while (FindNextFile(hFind, &findFileData) != 0);
+
+    FindClose(hFind);
+
+#else  // Unix-based systems
+    DIR *dir = opendir(directory);
+    if (!dir) {
+        perror("opendir");
+        return RC_ERR_IO_FILENOTFOUND;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strstr(entry->d_name, ".jar") != NULL) {
+            strncat(PTR(output), directory, size - strlen(PTR(output)) - 1);
+            strncat(PTR(output), PATH_SEPARATOR, size - strlen(PTR(output)) - 1);
+            strncat(PTR(output), entry->d_name, size - strlen(PTR(output)) - 1);
+            strncat(PTR(output), PATH_DELIMITER, size - strlen(PTR(output)) - 1);
+        }
+    }
+    closedir(dir);
+#endif
+
+    // Remove trailing semicolon if present
+    size_t len = strnlen(PTR(output), size);
+    if (len > 1 && (PTR(output)[len - 1] == ';' || PTR(output)[len - 1] == ':')/*Unix of Windows*/) {
+        PTR(output)[len - 1] = '\0';
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/**
  * Reads the message from Chrome
  */
 int chrome_read_message(char *buffer) {
@@ -283,7 +384,7 @@ int chrome_read_message(char *buffer) {
 
     if ( message_length > BUFFER_SIZE - 1 ) {
         char *errMsg = "Message too large. Not supported";
-        fprintf(stderr, "%s\n", errMsg);
+        logmsg(LOGGING_ERROR, errMsg);
         sendErrorMessage(errMsg,RC_ERR_CHROME_MESSAGE_TO_LARGE );
 
         return RC_ERR_CHROME_MESSAGE_TO_LARGE;
@@ -295,12 +396,53 @@ int chrome_read_message(char *buffer) {
     if ( !fread(buffer, message_length, 1, stdin) ) {
 #endif
         char *errMsg = "Failed to read message";
-        fprintf(stderr, "%s\n", errMsg);
+        logmsg(LOGGING_ERROR, errMsg);
         sendErrorMessage(errMsg,RC_ERR_CHROME_FAILED_MESSAGE );
         return RC_ERR_CHROME_FAILED_MESSAGE;
     }
 
     buffer[message_length] = '\0';
+
+    return EXIT_SUCCESS;
+}
+
+returncode_t get_oplauncher_home_directory(char *oplauncher_dir, size_t size) {
+    _MEMZERO(oplauncher_dir, size);
+#if defined(_WIN32) || defined(_WIN64)
+    char home_dir[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, home_dir))) {
+        snprintf(oplauncher_dir,size,"%s\\%s",home_dir, OPLAUNCHER_HOME_DIRECTORY_NAME);
+    }
+    else {
+        logmsg(LOGGING_ERROR, "Failed to retrieve home directory.");
+        return RC_ERR_MISSING_ENV_VARIABLE;
+    }
+
+    if (_access(oplauncher_dir, 0) != 0) {
+        if (_mkdir(oplauncher_dir) != 0) {
+            logmsg(LOGGING_ERROR, "Failed to create directory: %s", oplauncher_dir);
+            return RC_ERR_IO_CREATEDIR_FAILED;
+        }
+    }
+#else
+    struct stat st;
+    const char *home_dir = getenv("HOME");
+    if (!home_dir) {
+        struct passwd *pw = getpwuid(getuid());
+        home = pw ? pw->pw_dir : NULL;
+    }
+    if (!home_dir) {
+        fprintf(stderr, "Error: HOME environment variable not set.\n");
+        return RC_ERR_MISSING_ENV_VARIABLE;
+    }
+    snprintf(oplauncher_dir,size,"%s\\%s",home_dir, OPLAUNCHER_HOME_DIRECTORY_NAME);
+    if (stat(oplauncher_dir, &st) != 0) { // Directory does not exist
+        if (mkdir(oplauncher_dir, 0755) != 0) {
+            perror("mkdir");
+            return RC_ERR_IO_CREATEDIR_FAILED;
+        }
+    }
+#endif
 
     return EXIT_SUCCESS;
 }
@@ -326,7 +468,7 @@ returncode_t create_nested_dirs(const char *path) {
     if (!path || *path == '\0') {
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Invalid path: %s", path);
-        fprintf(stderr, "%s\n", errMsg);
+        logmsg(LOGGING_ERROR, errMsg);
         sendErrorMessage(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
         return RC_ERR_IO_CREATEDIR_FAILED;
     }
@@ -339,7 +481,7 @@ returncode_t create_nested_dirs(const char *path) {
     } else {
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Failed to create directory '%s' (error code: %ld).\n", path, result);
-        fprintf(stderr, "%s\n", errMsg);
+        logmsg(LOGGING_ERROR, errMsg);
         sendErrorMessage(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
         return RC_ERR_IO_CREATEDIR_FAILED;
     }
@@ -367,7 +509,7 @@ returncode_t load_cache_path(char *cache_path, size_t max_size) {
     char home_dir[MAX_PATH];
     if (SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, home_dir) != S_OK) {
         const char *errMsg = "Error retrieving home directory";
-        fprintf(stderr, "%s\n", errMsg);
+        logmsg(LOGGING_ERROR, errMsg);
         sendErrorMessage(errMsg, RC_ERR_MSIO_RETRIEVAL_FAILED);
         return RC_ERR_MSIO_RETRIEVAL_FAILED;
     }

@@ -18,22 +18,24 @@ returncode_t load_applet(const char *op, const char *className, const char *appl
 	int param_counter = 0;
 	char additional_params[BUFFER_SIZE];
 	char *applet_params[OPLAUNCHER_PROTO_MAXPARAMS];
-	memset(applet_params, 0, OPLAUNCHER_PROTO_MAXPARAMS * sizeof(char));
+	_MEMZERO(applet_params, OPLAUNCHER_PROTO_MAXPARAMS * sizeof(char));
 
 	applet_params[param_counter++] = op;
 	applet_params[param_counter++] = baseUrl;
 	applet_params[param_counter++] = codebase;
 	applet_params[param_counter++] = archiveUrl;
 	applet_params[param_counter++] = appletName;
-	applet_params[param_counter++] = className;
 
-	memset(additional_params, 0, BUFFER_SIZE * sizeof(char));
+	_MEMZERO(additional_params, BUFFER_SIZE * sizeof(char));
 	/// Add the additional parameters
 	snprintf(additional_params, BUFFER_SIZE, "width=%s;height=%s;posx=%.4f;posy=%.4f", width, height, posx, posy);
 	if ( parameters != NULL ) {
 		snprintf(additional_params, BUFFER_SIZE, "%s;%s", parameters, additional_params);
 	}
 	applet_params[param_counter++] = additional_params;
+
+	/// APPLET CLASS NAME
+	applet_params[param_counter++] = className;
 
 	return trigger_applet_execution(className, applet_params, param_counter );
 }

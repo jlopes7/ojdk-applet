@@ -120,6 +120,7 @@ set(SOURCES
         utils.c
         iohelper.c
         ini_config.c
+        logging.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -131,6 +132,7 @@ set(HEADERS
         iohelper.h
         chrome_ext_comm.h
         ini_config.h
+        logging.h
 )
 
 # Specific files per platform
@@ -138,10 +140,12 @@ if (WIN32)
     list(APPEND SOURCES
         ui/win_splash.c
         ui/win_java_console.c
+        ui/win_tray_ctrl.c
     )
     list(APPEND HEADERS
         ui/win_splash.h
         ui/win_java_console.h
+        ui/win_tray_ctrl.h
     )
 
     # Resource files
@@ -245,6 +249,10 @@ else()
             Crypt32.lib
     )
 endif()
+
+if (WIN32)
+    target_link_options(oplauncher PRIVATE "/ENTRY:WinMainCRTStartup")
+endif ()
 
 # Output message for the user
 message(STATUS "Configuration complete for ${OS_PLATFORM}")

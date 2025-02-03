@@ -11,6 +11,8 @@
 
 #include "utils.h"
 
+#define JVM_CP_FOLDERNAME                   "libs"
+
 #define CL_APPLET_CLASSLOADER	            "org/oplauncher/AppletClassLoader"
 #define CL_APPLET_CLASSLOADER_METHOD        "processLoadAppletOp"
 #define CL_APPLET_CLASSLOADER_PARAMTYPES    "(Ljava/util/List;)Ljava/lang/String;"
@@ -25,6 +27,7 @@
 typedef struct {
     JavaVM *jvm;
     JNIEnv *env;
+    jobject *applet_classloader;
 } jvm_launcher_t;
 
 void get_executable_directory(char *buffer, size_t size);
