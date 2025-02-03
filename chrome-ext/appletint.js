@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		/// We have to wait a bit for the iframe to be rendered
 		setTimeout(() => {
-			const position = getAppletElementPosition(iframe);
+			const position = getAbsoluteScreenPosition(iframe);
 			const requestMsg = {
 				op: 		OP_LOAD,
 				className: 	className,
@@ -129,6 +129,29 @@ function getAppletElementPosition(element) {
 	const x = rect.left + window.scrollX;
 	const y = rect.top + window.scrollY;
 
+	return { x, y };
+}
+
+/**
+ * Tries to retrieve the absolute position of a DOM element
+ * @param element	the DOM element to verify the position
+ * @returns {{x: number, y: number}}
+ */
+function getAbsoluteScreenPosition(element) {
+	const rect = element.getBoundingClientRect();
+
+	// Get browser window offset
+	const windowX = window.screenX || window.screenLeft; // Leftmost screen position
+	const windowY = window.screenY || window.screenTop;  // Topmost screen position
+
+	// Get browser's top UI height (tabs + address bar)
+	const browserTopOffset = window.outerHeight - window.innerHeight;
+
+	// Adjust for page scrolling + browser UI
+	const x = parseInt (rect.left + windowX);
+	const y = parseInt (rect.top + windowY + browserTopOffset);
+
+	console.log(`Applet absolute Screen Position - X: ${x}, Y: ${y}`);
 	return { x, y };
 }
 
