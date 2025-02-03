@@ -57,6 +57,13 @@ public abstract class AppletController {
         }
     }
 
+    public AppletController disposeAllApplets() {
+        if ( getAppletFrame().isDisplayable() ) {
+            getAppletFrame().dispose();
+        }
+         return this;
+    }
+
     private boolean isSWTConsole() {
         return ConfigurationHelper.getConsoleType() == JavaConsoleBuilder.ConsoleType.SWT;
     }

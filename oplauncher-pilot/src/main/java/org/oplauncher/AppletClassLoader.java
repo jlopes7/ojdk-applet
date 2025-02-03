@@ -1,10 +1,13 @@
 package org.oplauncher;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.oplauncher.load.SplashScreen;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.runtime.AppletController;
 import org.oplauncher.runtime.AppletControllerFactory;
 
+import javax.swing.*;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -12,6 +15,7 @@ import java.util.List;
 import static org.oplauncher.ErrorCode.*;
 
 public class AppletClassLoader extends AbstractAppletClassLoader<String> {
+    static private final Logger LOGGER = LogManager.getLogger(AppletClassLoader.class);
 
     public AppletClassLoader() {
         super(AppletClassLoader.getSystemClassLoader());
@@ -25,32 +29,46 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
 
     @Override
     public String processLoadAppletOp(List<String> parameters) throws OPLauncherException {
-        // Step 1: Load the applet source code and cache it (if enabled)
-        List<FileResource> loadedResources = loadAppletFromURL(parameters);
+        try {
+            // Step 1: Load the applet source code and cache it (if enabled)
+            List<FileResource> loadedResources = loadAppletFromURL(parameters);
 
-        // Lets load all resources
-        for (FileResource resource : loadedResources) {
-            try {
-                switch (resource.getResourceType()) {
-                    /// Jar file to be loaded
-                    case JAR_FILE: {
-                        loadJar(resource.getFile());
-                        break;
-                    }
-                    case UNKNOWN: {
-                        throw new OPLauncherException(String.format("Unknown resource type: [%s]", resource.getFile().getName()), CLASSPATH_LOAD_ERROR);
+            // Lets load all resources
+            for (FileResource resource : loadedResources) {
+                try {
+                    switch (resource.getResourceType()) {
+                        /// Jar file to be loaded
+                        case JAR_FILE: {
+                            loadJar(resource.getFile());
+                            break;
+                        }
+                        case UNKNOWN: {
+                            throw new OPLauncherException(String.format("Unknown resource type: [%s]", resource.getFile().getName()), CLASSPATH_LOAD_ERROR);
+                        }
                     }
                 }
-            } catch (IOException e) {
-                throw new OPLauncherException(String.format("Failed to load the resource: [%s]",
-                                              resource.getFile().getName()), e, CLASSPATH_LOAD_ERROR);
+                catch (IOException e) {
+                    throw new OPLauncherException(String.format("Failed to load the resource: [%s]",
+                            resource.getFile().getName()), e, CLASSPATH_LOAD_ERROR);
+                }
             }
+
+            /// Load the Applet class !!!
+            getAppletController().execute(OpCode.LOAD_APPLET);
+
+            return "";
         }
+        catch (Throwable t) {
+            LOGGER.error("An error occurred while loading the applet", t);
+            SplashScreen.instance.closeSplash();
+            JOptionPane.showMessageDialog(null, "An error occurred: " + t.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            throw t;
+        }
+    }
 
-        /// Load the Applet class !!!
-        getAppletController().execute(OpCode.LOAD_APPLET);
-
-        return "";
+    public AppletClassLoader disposeApplets() {
+        getAppletController().disposeAllApplets();
+        return this;
     }
 
     static public void main(String[] args) {
@@ -62,12 +80,12 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                     "", "",
                     "width=500;height=100",
                     "Simple.class"));*/
-            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://javatester.org",
                     "",
                     "", "Java Tester Applet",
-                    "width=440;height=60;posx=100;posy=100",
-                    "JavaVersionDisplayApplet.class"));*/
+                    "width=440;height=60;posx=1530;posy=420",
+                    "JavaVersionDisplayApplet.class"));
             /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://www.math.uh.edu/mathonline/JavaTest",
                     "",
@@ -80,12 +98,12 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                     "dxf-applet-signed.jar", "DXF Applet",
                     "width=1024;height=400",
                     "de.caff.dxf.applet.DxfApplet"));*/
-            appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
+            /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://imagej.net/ij",
                     "",
                     "ij.jar", "ImageJ Applet",
                     "width=300;height=100",
-                    "ij.ImageJApplet"));
+                    "ij.ImageJApplet"));*/
             /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://web.mit.edu/java_v1.0.2/www/tutorial/java/threads/",
                     "codebase=example",

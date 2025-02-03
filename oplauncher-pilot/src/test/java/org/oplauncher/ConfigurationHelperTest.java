@@ -13,6 +13,6 @@ public class ConfigurationHelperTest {
         String homeDirectoryPath = homeDirectory.getAbsolutePath();
 
         assertNotNull(homeDirectory);
-        assertEquals("C:/Temp/oplauncher", ConfigurationHelper.getHomeDirectory().getAbsolutePath());
+        assertEquals("C:\\Users\\joaol\\.oplauncher", ConfigurationHelper.getHomeDirectory().getAbsolutePath());
     }
 }

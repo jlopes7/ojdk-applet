@@ -60,6 +60,8 @@ public class SWTJavaConsole implements JavaConsole {
         getShell().setImage(new Image(getDisplay(), getClass().getResourceAsStream(CONFIG_ICONRES_JAVACONSOLE)));
 
         getShell().open();
+        getShell().setVisible(true);
+        getShell().setActive();
 
         return this;
     }
@@ -72,6 +74,8 @@ public class SWTJavaConsole implements JavaConsole {
         if (!isConsoleVisible()) {
             // Open the Shell (make it visible)
             getShell().open();
+            getShell().setVisible(true);
+            getShell().setActive();
         }
 
         return this;

@@ -3,6 +3,7 @@
     <test name="UTClasses_General">
         <classes>
             <class name="org.oplauncher.ConfigurationHelperTest"/>
+            <class name="org.oplauncher.AppletClassLoaderTest"/>
         </classes>
     </test>
 </suite>

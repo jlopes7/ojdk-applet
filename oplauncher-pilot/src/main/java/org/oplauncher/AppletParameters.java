@@ -51,7 +51,7 @@ public class AppletParameters {
         LOCK.lock();
         try {
             String widthStr = _paramMap.get(APPLETPARAM_WIDTH);
-            return widthStr == null ? APPLET_WIDTH_DEFAULT : Integer.parseInt(widthStr);
+            return widthStr == null ? APPLET_WIDTH_DEFAULT : Float.valueOf(widthStr).intValue();
         }
         finally {
             LOCK.unlock();
@@ -79,7 +79,7 @@ public class AppletParameters {
         LOCK.lock();
         try {
             String posXStr = _paramMap.get(APPLETPARAM_POSX);
-            return posXStr == null ? -1 : Integer.valueOf(posXStr).intValue();
+            return posXStr == null ? -1 : Float.valueOf(posXStr).intValue();
         }
         finally {
             LOCK.unlock();
@@ -90,7 +90,7 @@ public class AppletParameters {
         LOCK.lock();
         try {
             String posYStr = _paramMap.get(APPLETPARAM_POSY);
-            return posYStr == null ? -1 : Integer.valueOf(posYStr).intValue();
+            return posYStr == null ? -1 : Float.valueOf(posYStr).intValue();
         }
         finally {
             LOCK.unlock();
