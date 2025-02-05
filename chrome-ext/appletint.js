@@ -1,4 +1,6 @@
-const OP_LOAD = "load_applet";
+const OP_LOAD    = "load_applet";
+const OP_COOKIES = "get_cookies";
+
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 
 const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
@@ -71,45 +73,75 @@ document.addEventListener("DOMContentLoaded", () => {
 		if (chrome.cookies) {
 			cookies = chrome.cookies.getAll({url: window.location.origin});
 		}
+		getCookies(function (message) {
+			let cookieStr = "";
+			if ( message.cookies ) {
+				cookieStr = message.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
+				}
 
-		if (cookies.length === 0) {
-			console.warn('No cookies found for', window.location.origin);
-		}
-		else {
-			console.info("Cookies found in the for the domain %s:", window.location.origin, cookies);
-		}
+			console.info(`Cookies found: [${cookieStr}]`);
 
-		/// We have to wait a bit for the iframe to be rendered
-		setTimeout(() => {
+			// Ensure message is sent after fetching cookies
+			sendAppletMessage(cookieStr);
+		});
+
+		/**
+		 * Send the applet message
+		 */
+		function sendAppletMessage(cookieStr) {
 			const position = getAbsoluteScreenPosition(iframe);
 			const requestMsg = {
-				op: 		OP_LOAD,
-				className: 	className,
+				op: OP_LOAD,
+				className: className,
 				archiveUrl: archiveUrl,
-				codebase: 	codebase,
+				codebase: codebase,
 				appletName: appletName,
-				baseUrl: 	baseUrl,
-				width: 		width,
-				height: 	height,
-				posx: 		position.x,
-				posy: 		position.y,
+				baseUrl: baseUrl,
+				width: width,
+				height: height,
+				posx: position.x,
+				posy: position.y,
 				parameters: parametersStr,
-				cookies: 	cookies.join(";")
-			}
+				cookies: cookieStr
+			};
 
-			console.info("About to send the request to backend port", requestMsg);
-			/**
-			 * ----------------------
-			 *  OP: LOAD THE APPLET
-			 * ----------------------
-			 * --> Send cookies along with applet details to the background script
-			 */
-			chrome.runtime.sendMessage(requestMsg);
-		}, 100); // delay for 100ms to ensure the page is loaded
+			/// We have to wait a bit for the iframe to be rendered
+			//setTimeout(() => {
+				if (Object.keys(requestMsg).length > 0) {
+					console.info("About to send the request to backend port", requestMsg);
+					/**
+					 * ----------------------
+					 *  OP: LOAD THE APPLET
+					 * ----------------------
+					 * --> Send cookies along with applet details to the background script
+					 */
+					chrome.runtime.sendMessage(requestMsg);
+				}
+				else {
+					console.error("Request payload is empty, not sending!");
+				}
+			//}, 100); // delay for 100ms to ensure the page is loaded
+		}
 
 		// TODO: Additional operations go here!
 	});
 });
+
+function getCookies(callback) {
+	console.info("Requesting cookies from background script...");
+
+	chrome.runtime.sendMessage({ op: OP_COOKIES, url: window.location.origin }, (response) => {
+		if (chrome.runtime.lastError) {
+			console.error("rror requesting cookies:", chrome.runtime.lastError.message);
+			callback("{}");
+			return;
+		}
+
+		console.info("Cookies received:", response.cookies);
+		callback(response.cookies || "");
+	});
+}
+
 
 // Handle responses from the background script
 chrome.runtime.onMessage.addListener((message) => {

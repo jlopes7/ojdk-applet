@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "OJDK Applet Launcher",
 	"version": "1.0.0.1",
-	"permissions": ["nativeMessaging", "scripting", "cookies"],
+	"permissions": ["cookies", "nativeMessaging", "scripting"],
 	"host_permissions": ["<all_urls>"],
 	"content_scripts": [{
 		"matches": ["<all_urls>"],

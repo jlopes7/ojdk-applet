@@ -1,4 +1,6 @@
-const OP_LOAD = "load_applet";
+const OP_LOAD    = "load_applet";
+const OP_COOKIES = "get_cookies";
+
 const NATIVE_SERVICE = "org.oplauncher.applet_service";
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
@@ -46,7 +48,24 @@ if (DEBUG) {
  * Applet background service, used to communicate with the Applet external service
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.op === OP_LOAD) {
+    console.log(`OP selected: ${message.op} . Expected OP: ${OP_LOAD}`)
+    if (message.op === OP_COOKIES) {
+        chrome.cookies.getAll({ url: message.url }, (cookies) => {
+            if (chrome.runtime.lastError) {
+                console.error("Error retrieving cookies:", chrome.runtime.lastError);
+                sendResponse({ cookies: "" });
+                return;
+            }
+
+            // Format cookies as "key=value; key2=value2"
+            const cookieStr = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
+            console.info("Sending cookies to content script:", cookieStr);
+            sendResponse({ cookies: cookieStr });
+        });
+
+        return true;
+    }
+    else if (message.op === OP_LOAD) {
         /*
          * Option 1: Loads the Applet base code and sends its bits as B64 across the wire
          * -> May be a valid option for the future, but for now is deactivated
@@ -115,17 +134,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.info("Option 2 (Applet bits is resolved by OPLauncher) was selected");
 
             send2OPLauncher(message, (resp, port) => {
+                console.info("Got a response back from the native host", message)
                 if (sender && sender.tab && sender.tab.id) {
                     // Send response back to the content script
-                    chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                    //chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                    chrome.tabs.sendMessage(sender.tab.id, { action: "applet_closed" });
                 }
                 else {
                     console.warn("Sender tab ID is missing. Cannot send message back.");
-                }
-            }, function(e) {
-                const iframe = document.getElementById(OPLAUNCHER_IFRAME_ID);
-                if (iframe) {
-                    iframe.srcdoc = APPLET_HTML_CONTENT_CLOSED;
                 }
             });
         }
@@ -139,10 +155,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  * @param callbackErr       the error callback function. Called when something bad happened
  */
 function send2OPLauncher(messageToNative, callback, callbackErr) {
+    if (!messageToNative || typeof messageToNative !== "object" || Object.keys(messageToNative).length === 0) {
+        console.error("Empty message detected! Aborting...", messageToNative);
+        return;
+    }
+    console.info("Validating Message Before Sending to OPLauncher:", JSON.stringify(messageToNative, null, 2));
+
     const port = chrome.runtime.connectNative(NATIVE_SERVICE);
 
     console.info("About to send a message to OPLauncher:", messageToNative);
     port.postMessage(messageToNative); // Send applet details and file content to native host
+    console.info("Message to OPLauncher sent");
 
     port.onMessage.addListener((response) => {
         console.info("Response from native host:", response);
@@ -152,12 +175,10 @@ function send2OPLauncher(messageToNative, callback, callbackErr) {
     });
 
     // Ensure onDisconnect is only added once
-    if (!port.onDisconnect.hasListener(handlePortDisconnect)) {
-        port.onDisconnect.addListener(() => {
-            console.error("Native host (OPLauncher) was disconnected.");
-            callbackErr(new Error("Connection failed"));
-        });
-    }
+    port.onDisconnect.addListener(() => {
+        console.error("Native host (OPLauncher) was disconnected.");
+        if (callbackErr) callbackErr(new Error("Connection failed"));
+    });
 }
 
 /**
