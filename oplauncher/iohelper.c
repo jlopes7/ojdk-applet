@@ -12,7 +12,7 @@ returncode_t decode_base64(const char *base64, unsigned char **decodedData, DWOR
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Error in determining buffer size: %lu", GetLastError());
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_FAILED_B64_BUFFERSZ);
+        send_jsonerror_message(errMsg, RC_ERR_FAILED_B64_BUFFERSZ);
         return RC_ERR_FAILED_B64_BUFFERSZ;
     }
 
@@ -21,7 +21,7 @@ returncode_t decode_base64(const char *base64, unsigned char **decodedData, DWOR
     if (PTR(decodedData) == NULL) {
         char *errMsg = "Memory allocation failed";
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_MEMORY_ALLOCATION_FAILED);
+        send_jsonerror_message(errMsg, RC_ERR_MEMORY_ALLOCATION_FAILED);
         return RC_ERR_MEMORY_ALLOCATION_FAILED;
     }
 
@@ -30,7 +30,7 @@ returncode_t decode_base64(const char *base64, unsigned char **decodedData, DWOR
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Error in encoding base64: %lu", GetLastError());
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_ENCDEC_B64);
+        send_jsonerror_message(errMsg, RC_ERR_ENCDEC_B64);
         return RC_ERR_ENCDEC_B64;
     }
 
@@ -53,7 +53,7 @@ returncode_t save_decoded_data_to_file(const char *filePath, const unsigned char
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Failed to open file for writing: %", filePath);
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_IO_FILEOPEN_FAILED);
+        send_jsonerror_message(errMsg, RC_ERR_IO_FILEOPEN_FAILED);
         return RC_ERR_IO_FILEOPEN_FAILED;
     }
 
@@ -61,7 +61,7 @@ returncode_t save_decoded_data_to_file(const char *filePath, const unsigned char
     if (written != length) {
         char *errMsg = "Failed to write all data to file";
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_IO_READWRITE_FAILED);
+        send_jsonerror_message(errMsg, RC_ERR_IO_READWRITE_FAILED);
         fclose(file);
         return RC_ERR_IO_READWRITE_FAILED;
     }
@@ -83,7 +83,7 @@ returncode_t process_base64_file_from_json(const char *jsonString, const char *o
     if (!json) {
         char *errMsg = "Error parsing JSON";
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_COULDNOT_PARSEJSON);
+        send_jsonerror_message(errMsg, RC_ERR_COULDNOT_PARSEJSON);
         return RC_ERR_COULDNOT_PARSEJSON;
     }
 
@@ -91,7 +91,7 @@ returncode_t process_base64_file_from_json(const char *jsonString, const char *o
     if (!cJSON_IsString(base64DataItem)) {
         char *errMsg = "Error: fileData is not a string";
         fprintf(stderr, "%s\n", errMsg);
-        sendErrorMessage(errMsg, RC_ERR_COULDNOT_PARSEJSON);
+        send_jsonerror_message(errMsg, RC_ERR_COULDNOT_PARSEJSON);
         cJSON_Delete(json);
         return RC_ERR_COULDNOT_PARSEJSON;
     }

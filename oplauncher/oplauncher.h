@@ -17,7 +17,6 @@
 #define OPLAUNCHER_PROTO_MAXPARAMS      7
 
 //int chrome_read_message(char *buffer);
-void chrome_send_message(const char *message);
 returncode_t load_applet(const char *op, const char *className, const char *appletName, const char *archiveUrl,
                          const char *baseUrl, const char *codebase, const char *height, const char *width,
                          const char *cookies, const char *parameters, double posx, double posy);

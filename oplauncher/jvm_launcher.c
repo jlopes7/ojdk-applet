@@ -130,7 +130,7 @@ void jvm_launcher_terminate() {
 		free(jvm_launcher);
 	}
 	else {
-		sendErrorMessage("The JVM launcher could not be found: java/lang/Error", RC_ERR_NO_JVMPROCESS_AVAIL);
+		send_jsonerror_message("The JVM launcher could not be found: java/lang/Error", RC_ERR_NO_JVMPROCESS_AVAIL);
 	}
 }
 
@@ -150,7 +150,7 @@ void get_executable_directory(char *buffer, size_t size) {
 		char errMsg[BUFFER_SIZE];
 		snprintf(errMsg, BUFFER_SIZE, "Buffer size too small; required size: %u\n", bufsize);
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_BUFFER_SZ_TOOSMALL);
+		send_jsonerror_message(errMsg, RC_ERR_BUFFER_SZ_TOOSMALL);
 	}
 	char *dir = dirname(buffer);  // Get directory part of the path
 	strncpy(buffer, dir, size);
@@ -186,7 +186,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (!jvm_launcher || !jvm_launcher->jvm || !jvm_launcher->env) {
 		char *errMsg = "Error: JVM is not initialized.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
+		send_jsonerror_message(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
 		return RC_ERR_JVMNOTLOADED;
 	}
 
@@ -199,7 +199,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (attachResult != JNI_OK) {
 		char *errMsg = "Error: Failed to attach current thread to JVM.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
+		send_jsonerror_message(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
 		return RC_ERR_FAILEDJVM_ATTACH;
 	}
 
@@ -209,7 +209,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (appletClassLoaderClass == NULL) {
 		char *errMsg = "Failed to find the AppletClassLoader class";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
+		send_jsonerror_message(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
 
 		PTR(PTR(jvm_launcher).jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_FAILED_FIND_APPCLLOADER;
@@ -221,7 +221,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (classloader == NULL) {
 		char *errMsg = "Failed to create AppletClassLoader instance";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_FAILED_CRE_APPCLLOADER);
+		send_jsonerror_message(errMsg, RC_ERR_FAILED_CRE_APPCLLOADER);
 
 		PTR(PTR(jvm_launcher).jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_FAILED_CRE_APPCLLOADER;
@@ -235,7 +235,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (loadAppletMethodID == NULL) {
 		char *errMsg = "Error: Method processLoadAppletOp not found.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
+		send_jsonerror_message(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
 
 		PTR(jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
@@ -246,7 +246,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (arrayListClass == NULL) {
 		char *errMsg = "Error: Class ArrayList not found.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
+		send_jsonerror_message(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
 
 		PTR(PTR(jvm_launcher).jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
@@ -256,7 +256,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (parameterList == NULL) {
 		char *errMsg = "Error: Could not create ArrayList instance.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_CANNOT_CLASS_INSTANCE);
+		send_jsonerror_message(errMsg, RC_ERR_CANNOT_CLASS_INSTANCE);
 
 		PTR(jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_CANNOT_CLASS_INSTANCE;
@@ -267,7 +267,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (addMethod == NULL) {
 		char *errMsg = "Error: Method add not found in ArrayList.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
+		send_jsonerror_message(errMsg, RC_ERR_CLLOADER_METHOD_NOTFOUND);
 
 		PTR(jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
@@ -283,7 +283,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 			char *errMsg = "Error: Could not create Java string for parameter";
 			snprintf(errMsg, MAXPATHLEN, "Error: Could not create Java string for parameter %d", i);
 			logmsg(LOGGING_ERROR, errMsg);
-			sendErrorMessage(errMsg, RC_ERR_CANNOT_CLASS_INSTANCE);
+			send_jsonerror_message(errMsg, RC_ERR_CANNOT_CLASS_INSTANCE);
 
 			PTR(jvm)->DetachCurrentThread(jvm);
 			return RC_ERR_CANNOT_CLASS_INSTANCE;
@@ -297,7 +297,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (resultString == NULL) {
 		char *errMsg = "Error: Applet trigger returned null.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_WRONG_RESULT_CLLOADER);
+		send_jsonerror_message(errMsg, RC_ERR_WRONG_RESULT_CLLOADER);
 
 		PTR(jvm)->DetachCurrentThread(jvm);
 		return RC_ERR_WRONG_RESULT_CLLOADER;
@@ -308,7 +308,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	if (resultCStr == NULL) {
 		char *errMsg = "Error: Could not convert result to C string.";
 		logmsg(LOGGING_ERROR, errMsg);
-		sendErrorMessage(errMsg, RC_ERR_TYPECONVERTING_FAILED);
+		send_jsonerror_message(errMsg, RC_ERR_TYPECONVERTING_FAILED);
 
 		// Release resources
 		PTR(jvm)->DetachCurrentThread(jvm);

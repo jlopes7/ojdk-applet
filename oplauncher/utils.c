@@ -10,6 +10,9 @@
 #include <windows.h>
 #include <shlobj.h> // For SHGetFolderPath
 #include <corecrt_io.h>
+#include <direct.h> // For _mkdir
+#include <fcntl.h>  // For O_BINARY
+#include <io.h>     // For _setmode
 #else
 #include <unistd.h>
 #include <sys/stat.h>
@@ -17,8 +20,8 @@
 #include <pwd.h>
 #endif
 
-#include <direct.h> // For _mkdir
-#include <logging.h>
+#include <stdint.h>
+#include "logging.h"
 
 returncode_t create_nested_dirs(const char *);
 
@@ -27,7 +30,8 @@ returncode_t create_nested_dirs(const char *);
  * @param errorMsg  the error message
  * @param errorCode the error code
  */
-int sendErrorMessage(const char* errorMsg, const int errorCode) {
+returncode_t send_jsonerror_message(const char* errorMsg, const returncode_t errorCode) {
+    returncode_t rc;
     // Create the root JSON object
     cJSON *root = cJSON_CreateObject();
 
@@ -51,13 +55,48 @@ int sendErrorMessage(const char* errorMsg, const int errorCode) {
     logmsg(LOGGING_ERROR, "About to send the error JSON to Chrome:\n%s", jsonString);
 
     // Print the JSON string
-    chrome_send_message(jsonString);
+    rc = chrome_send_message(errorMsg);
 
     // Free memory
     cJSON_free(jsonString);  // Use cJSON_free to free the string memory
     cJSON_Delete(root);      // Delete the cJSON object
 
-    return EXIT_SUCCESS;
+    return rc;
+}
+
+/**
+ * 
+ * @param message
+ * @return 
+ */
+returncode_t send_jsonsuccess_message(const char* message) {
+    returncode_t rc;
+    // Create the root JSON object
+    cJSON *root = cJSON_CreateObject();
+
+    // Add "status" key-value pair
+    cJSON_AddStringToObject(root, "status", "success");
+
+    cJSON_AddStringToObject(root, "message", message);
+
+    // Convert cJSON object to a JSON-formatted string
+    char *jsonString = cJSON_PrintUnformatted(root);
+    if (jsonString == NULL) {
+        logmsg(LOGGING_ERROR, "Failed to print JSON");
+        cJSON_Delete(root);
+        return EXIT_FAILURE;
+    }
+
+    logmsg(LOGGING_NORMAL, "About to send the success JSON message to Chrome:%s", jsonString);
+
+    // Print the JSON string
+    rc = chrome_send_message(jsonString);
+
+    // Free memory
+    cJSON_free(jsonString);  // Use cJSON_free to free the string memory
+    cJSON_Delete(root);      // Delete the cJSON object
+
+    return rc;
 }
 
 const char* getOpLauncherCommanderJarFileName() {
@@ -234,6 +273,8 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
             *json_width,
             *json_posx,
             *json_posy;
+
+    logmsg(LOGGING_NORMAL, "Parsing the JSON Message: %s", jsonmsg);
     // Parse the JSON string
     cJSON *json = cJSON_Parse(jsonmsg);
     if (json == NULL) {
@@ -360,12 +401,41 @@ returncode_t format_get_classpath(const char *directory, char **output, size_t s
     return EXIT_SUCCESS;
 }
 
+returncode_t chrome_read_message_length(uint32_t *message_length) {
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);  // Ensure stdin is in binary mode
+#endif
+
+    // Read 4 bytes from stdin
+    if (fread(message_length, sizeof(uint32_t), 1, stdin) != 1) {
+        PTR(message_length) = 0;
+        return RC_ERR_CHROME_FAILED_MESSAGE;
+    }
+
+    // Convert from little-endian if necessary
+/*#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    PTR(message_length) = SWAP_ENDIAN(PTR(message_length));
+#endif*/
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ * After the first message is read (with @{chrome_read_message}), continue to read the next comm message from Chrome
+ * @param buffer    the placeholder for the chrome message
+ * @return the execution code
+ */
+returncode_t chrome_read_next_message(char *buffer) {
+    // TODO: Implement
+    return EXIT_SUCCESS;
+}
+
 /**
  * Reads the message from Chrome
  */
-int chrome_read_message(char *buffer) {
-    unsigned int message_length;
-#if defined(_DEBUG)
+returncode_t chrome_read_message(char *buffer) {
+    uint32_t message_length;
+#if defined(_DEBUG_)
     FILE *file = fopen("test_input.bin", "rb");
     if (!file) {
         perror("Failed to open test_input.bin");
@@ -377,31 +447,35 @@ int chrome_read_message(char *buffer) {
         return 0; // End of input
     }
 #else
-    if ( !fread(&message_length, 4, 1, stdin) ) {
-        return 0; // End of input
+    _MEMZERO(buffer, BUFFER_SIZE);
+
+    returncode_t rc = chrome_read_message_length(&message_length);
+    if ( !_IS_SUCCESS(rc) ) {
+        logmsg(LOGGING_ERROR, "Failed to read message length: %d. RC: %ld", message_length, rc);
+        return rc;
     }
+    logmsg(LOGGING_NORMAL, "Chrome native message size received is: %ld bytes", message_length);
+    //fread(buffer, BUFFER_SIZE, 1, stdin);
 #endif
 
-    if ( message_length > BUFFER_SIZE - 1 ) {
-        char *errMsg = "Message too large. Not supported";
-        logmsg(LOGGING_ERROR, errMsg);
-        sendErrorMessage(errMsg,RC_ERR_CHROME_MESSAGE_TO_LARGE );
-
+    if ( (message_length +1) > BUFFER_SIZE - 1 ) {
+        logmsg(LOGGING_ERROR, "Message too large: %d > 4KB. Not supported", message_length);
         return RC_ERR_CHROME_MESSAGE_TO_LARGE;
     }
 
-#if defined(_DEBUG)
+#if defined(_DEBUG_)
     if ( !fread(buffer, message_length, 1, file) ) {
 #else
-    if ( !fread(buffer, message_length, 1, stdin) ) {
-#endif
+    if (fgets(buffer, message_length +1, stdin)) {
+        logmsg(LOGGING_NORMAL, "Received message from Chrome: %s", buffer);
+    }
+    else {
         char *errMsg = "Failed to read message";
         logmsg(LOGGING_ERROR, errMsg);
-        sendErrorMessage(errMsg,RC_ERR_CHROME_FAILED_MESSAGE );
+        send_jsonerror_message(errMsg,RC_ERR_CHROME_FAILED_MESSAGE );
         return RC_ERR_CHROME_FAILED_MESSAGE;
+#endif
     }
-
-    buffer[message_length] = '\0';
 
     return EXIT_SUCCESS;
 }
@@ -450,11 +524,33 @@ returncode_t get_oplauncher_home_directory(char *oplauncher_dir, size_t size) {
 /**
  * Sends a message to Chrome
  */
-void chrome_send_message(const char *message) {
-    unsigned int message_length = strnlen(message, BUFFER_SIZE);
-    fwrite(&message_length, 4, 1, stdout);
-    fwrite(message, message_length, 1, stdout);
+returncode_t chrome_send_message(const char *response) {
+    uint32_t message_length = (uint32_t) strnlen(response, BUFFER_SIZE);
+
+    // Ensure little-endian
+/*#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    message_length = SWAP_ENDIAN(message_length);
+#endif*/
+    logmsg(LOGGING_NORMAL, "Response size to be sent to Chrome: %ld bytes", message_length);
+    logmsg(LOGGING_NORMAL, "Response message to be sent to Chrome: %s", response);
+
+    // Ensure stdout is in binary mode ...Windows workaround...
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+
+    if (!fwrite(&message_length, sizeof(uint32_t), 1, stdout)) {
+        logmsg(LOGGING_ERROR, "Failed to write message length back to Chrome: %ld", message_length);
+        return RC_ERR_CHROME_FAILED_MESSAGE;
+    }
     fflush(stdout);
+    if (!fwrite(response, message_length, 1, stdout)) {
+        logmsg(LOGGING_ERROR, "Failed to write message back to Chrome: %s", response);
+        return RC_ERR_CHROME_FAILED_MESSAGE;
+    }
+    fflush(stdout);
+
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -469,7 +565,7 @@ returncode_t create_nested_dirs(const char *path) {
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Invalid path: %s", path);
         logmsg(LOGGING_ERROR, errMsg);
-        sendErrorMessage(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
+        send_jsonerror_message(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
         return RC_ERR_IO_CREATEDIR_FAILED;
     }
 
@@ -482,7 +578,7 @@ returncode_t create_nested_dirs(const char *path) {
         char errMsg[BUFFER_SIZE];
         snprintf(errMsg, BUFFER_SIZE, "Failed to create directory '%s' (error code: %ld).\n", path, result);
         logmsg(LOGGING_ERROR, errMsg);
-        sendErrorMessage(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
+        send_jsonerror_message(errMsg, RC_ERR_IO_CREATEDIR_FAILED);
         return RC_ERR_IO_CREATEDIR_FAILED;
     }
 #else
@@ -510,7 +606,7 @@ returncode_t load_cache_path(char *cache_path, size_t max_size) {
     if (SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, home_dir) != S_OK) {
         const char *errMsg = "Error retrieving home directory";
         logmsg(LOGGING_ERROR, errMsg);
-        sendErrorMessage(errMsg, RC_ERR_MSIO_RETRIEVAL_FAILED);
+        send_jsonerror_message(errMsg, RC_ERR_MSIO_RETRIEVAL_FAILED);
         return RC_ERR_MSIO_RETRIEVAL_FAILED;
     }
 

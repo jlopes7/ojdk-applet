@@ -68,13 +68,24 @@ int main(void) {
 #endif
     char buffer[BUFFER_SIZE];
     char cache_path[MAX_PATH];
-    int rc = EXIT_SUCCESS;
+    returncode_t rc = EXIT_SUCCESS;
 
     // Logging...
     rc = logging_init();
     if ( !_IS_SUCCESS(rc) ) {
-        sendErrorMessage("Could not initialize the log mechanism", rc);
+        send_jsonerror_message("Could not initialize the log mechanism", rc);
         return rc;
+    }
+
+    logmsg(LOGGING_NORMAL, "Waiting from Chrome to parse the first native message (load_applet)");
+    _MEMZERO(buffer, BUFFER_SIZE);
+    // First chrome message is to prepare and load the applet
+    rc = chrome_read_message(buffer);
+    if ( _IS_SUCCESS(rc) ) {
+        send_jsonsuccess_message(DEF_SUCCESS_MESSAGE);
+    }
+    else {
+        send_jsonerror_message("Could not parse the native message from chrome", rc);
     }
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -125,7 +136,6 @@ int main(void) {
         return EXIT_FAILURE;
     }
 #endif
-    _MEMZERO(buffer, BUFFER_SIZE);
 
     logmsg(LOGGING_NORMAL, "Creating the JVM instance");
     /*
@@ -133,7 +143,7 @@ int main(void) {
      */
     rc = jvm_launcher_init(CL_APPLET_CLASSLOADER);
     if (rc != EXIT_SUCCESS) {
-        sendErrorMessage("Could not launch the JVM", rc);
+        send_jsonerror_message("Could not launch the JVM", rc);
     }
 
     logmsg(LOGGING_NORMAL, "Configuring the application port cache");
@@ -145,17 +155,16 @@ int main(void) {
     // Create cache directory if it doesn't exist
     create_cache_directory(cache_path);
 
-    logmsg(LOGGING_NORMAL, "Waiting from Chrome to parse the first native message (load_applet)");
-    // First chrome message is to prepare and load the applet
-    chrome_read_message(buffer);
     // Parse the incoming JSON (a simple example without full JSON parsing)
     char *op, *applet_name, *class_name, *archive_url, *base_url, *codebase, *height, *width;
     double posx, posy;
-    rc = parse_msg_from_chrome_init(buffer, &op, &class_name, &applet_name, &archive_url, &base_url, &codebase, &height, &width, &posx, &posy, NULL, NULL);
+    rc = parse_msg_from_chrome_init(buffer, &op, &class_name, &applet_name,
+                                    &archive_url, &base_url, &codebase, &height,
+                                    &width, &posx, &posy, NULL, NULL);
 
-    if (rc != EXIT_SUCCESS) {
-        logmsg(LOGGING_ERROR, "Could not parse the native message from chrome init");
-        sendErrorMessage("Error: Could not parse the native message from chrome init", rc);
+    if ( !_IS_SUCCESS(rc) ) {
+        logmsg(LOGGING_ERROR, "Could not parse the native message from chrome init: %d", rc);
+        send_jsonerror_message("Error: Could not parse the native message from chrome init", rc);
         free(op);
         free(class_name);
         free(applet_name);
@@ -191,7 +200,7 @@ int main(void) {
      */
     _MEMZERO(buffer, BUFFER_SIZE);
     while (!End_OpLauncher_Process //Controls either if the process should end naturally or not
-                && _IS_SUCCESS(chrome_read_message(buffer))) {
+                && _IS_SUCCESS(chrome_read_next_message(buffer))) {
         // Parse the incoming JSON (a simple example without full JSON parsing)
         /*char *class_name = NULL;
         char *jar_path = NULL;
@@ -201,14 +210,14 @@ int main(void) {
 
         rc = parse_msg_from_chrome(buffer, &class_name, &jar_path, params);
         if ( !_ISUCCESS(rc) ) {
-            sendErrorMessage("Could not read the message sent from chrome", rc);
+            send_jsonerror_message("Could not read the message sent from chrome", rc);
         }
 
         if (class_name!=NULL && jar_path!= NULL && strlen(class_name) > 0 && strlen(jar_path) > 0) {
             //launch_jvm(class_name, jar_path, params);
         }
         else {
-            sendErrorMessage("Invalid message format", RC_ERR_INVALID_MSGFORMAT);
+            send_jsonerror_message("Invalid message format", RC_ERR_INVALID_MSGFORMAT);
         }
 
         _MEMZERO(buffer, BUFFER_SIZE);

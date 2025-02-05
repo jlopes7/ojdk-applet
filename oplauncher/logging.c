@@ -121,13 +121,17 @@ returncode_t logmsg(loglevel_t lvl, const char *format, ...) {
     fprintf(PTR(_logging_config).log_file_fp, "\n");
     fflush(PTR(_logging_config).log_file_fp);
     va_end(args);
+
+    return EXIT_SUCCESS;
 }
 
 returncode_t logging_end() {
     if ( _is_initialized ) {
-      free (PTR(_logging_config).log_dir);
-      free (PTR(_logging_config).log_file);
-      fclose(PTR(_logging_config).log_file_fp);
-      free(_logging_config);
+        free (PTR(_logging_config).log_dir);
+        free (PTR(_logging_config).log_file);
+        fclose(PTR(_logging_config).log_file_fp);
+        free(_logging_config);
     }
+
+    return EXIT_SUCCESS;
 }
