@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define SMALL_BUFFER    0x00000010 /*16*/
 #define BUFFER_SIZE	    0x00001000 /*4K*/
 #define MID_BUFFER_SIZE	0x00008000 /*32K*/
 #define MAX_BUFFER_SIZE	0x00100000 /*1M*/
@@ -30,6 +31,22 @@
 #endif
 #ifndef FALSE
 #define FALSE	0
+#endif
+#ifndef BOOL
+#define BOOL	int
+#endif
+
+#ifndef ST_YES
+#define ST_YES	    "yes"
+#endif
+#ifndef ST_NO
+#define ST_NO	    "no"
+#endif
+#ifndef ST_TRUE
+#define ST_TRUE	    "true"
+#endif
+#ifndef ST_FALSE
+#define ST_FALSE	    "no"
 #endif
 
 #define OPLAUNCHER_HOME_DIRECTORY_NAME  ".oplauncher"
@@ -80,6 +97,13 @@ typedef struct {
 
 typedef unsigned short returncode_t;
 
+typedef enum {
+    OP_LOAD = 0,
+    OP_UNLOAD,
+    OP_MOVE,
+    OP_UNKNOWN
+} opcode_t;
+
 returncode_t send_jsonerror_message(const char* errorMsg, const returncode_t errorCode);
 returncode_t send_jsonsuccess_message(const char* message);
 returncode_t chrome_read_message_length(uint32_t *message_length);
@@ -87,6 +111,7 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
                                         char **archiveUrl, char **baseUrl, char **codebase,
                                         char **height, char **width, double *posx, double *posy,
                                         data_tuplet_t *tupletCookies, data_tuplet_t *parameters);
+returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void **propval);
 returncode_t parse_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet);
 returncode_t get_oplauncher_home_directory(char *oplauncher_dir, size_t size);
 returncode_t get_directory_from_path(const char *file_path, char *dir_path, size_t size);
@@ -94,9 +119,11 @@ returncode_t get_directory_from_path(const char *file_path, char *dir_path, size
 returncode_t chrome_read_message(char *buffer);
 returncode_t chrome_read_next_message(char *buffer);
 returncode_t chrome_send_message(const char *message);
+returncode_t get_opcode(opcode_t *opcode, const char *opcodename);
 char* replace_with_crlf(const char* input);
 const char* getOpLauncherCommanderJarFileName(void);
 
+returncode_t omit_stderr(void);
 void print_hello(void);
 
 returncode_t format_get_classpath(const char *directory, char **output, size_t size);

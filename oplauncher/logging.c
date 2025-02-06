@@ -68,7 +68,7 @@ returncode_t logging_init() {
         fprintf(stderr, "Error: Log file path is empty. Check INI file.\n");
         return RC_ERR_INVALID_PATH;
     }
-    fprintf(stdout, "About to create/open the log file: %s\n", PTR(_logging_config).log_file);
+    //fprintf(stdout, "About to create/open the log file: %s\n", PTR(_logging_config).log_file);
     fopen_s(&PTR(_logging_config).log_file_fp, PTR(_logging_config).log_file, "a+");
 #else
     strncpy(PTR(_logging_config).log_dir, log_dir, dirlen);
@@ -95,7 +95,7 @@ returncode_t logmsg(loglevel_t lvl, const char *format, ...) {
     char timestamp[32];
 
     if ( !_is_initialized || !PTR(_logging_config).log_file_fp ) {
-        fprintf(stderr, "Logging not initialized. Call logging_init() first.\n");
+        //fprintf(stderr, "Logging not initialized. Call logging_init() first.\n");
         return RC_ERR_NOT_INITIALIZED;
     }
 

@@ -30,10 +30,10 @@ returncode_t jvm_launcher_init(const char *class_name) {
 	char policy_path[MAX_PATH];
 	char oplauncher_libhome[MAX_PATH];
 	JavaVMInitArgs vm_args;
-#if defined(_DEBUG)
-	JavaVMOption options[3];
+#if defined(_DEBUG_)
+	JavaVMOption options[4];
 #else
-	JavaVMOption options[2];
+	JavaVMOption options[3];
 #endif
 
 	char *classpath_option = malloc(BUFFER_SIZE);
@@ -87,17 +87,18 @@ returncode_t jvm_launcher_init(const char *class_name) {
 
 	options[0].optionString = classpath_option;
 	options[1].optionString = policy_option;
-#if defined(_DEBUG)
-	options[2].optionString = "-verbose:jni"; // Debug JNI
+	options[2].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=off";
+#if defined(_DEBUG_)
+	options[3].optionString = "-verbose:jni"; // Debug JNI
 #endif
 
 	JNI_GetDefaultJavaVMInitArgs(&vm_args);
 	// Initialize JVM arguments
 	vm_args.version = JNI_VERSION_1_8;
-#if defined(_DEBUG)
-	vm_args.nOptions = 3;
+#if defined(_DEBUG_)
+	vm_args.nOptions = 4;
 #else
-	vm_args.nOptions = 2;
+	vm_args.nOptions = 3;
 #endif
 	vm_args.options = options;
 	vm_args.ignoreUnrecognized = JNI_FALSE;
@@ -119,10 +120,10 @@ returncode_t jvm_launcher_init(const char *class_name) {
 
 void jvm_launcher_terminate() {
 	if (PTR(jvm_launcher).env) {
-		if (PTR(jvm_launcher).applet_classloader) {
+		/*if (PTR(jvm_launcher).applet_classloader) {
 			logmsg(LOGGING_NORMAL, "Terminating the JVM: %p", PTR(jvm_launcher).jvm);
 			PTR(PTR(jvm_launcher).env)->DeleteLocalRef(PTR(jvm_launcher).env, PTR(jvm_launcher).applet_classloader);
-		}
+		}*/
 
 		// Destroys the JVM
 		PTR(PTR(jvm_launcher).jvm)->DestroyJavaVM(PTR(jvm_launcher).jvm);
@@ -167,6 +168,128 @@ void get_executable_directory(char *buffer, size_t size) {
 #endif
 	/// Just save the policy file
 	strncpy (applet_policy_filepath, buffer, BUFFER_SIZE);
+}
+
+/**
+ * Trigger a new operation execution based on the given parameters
+ * @param opcodename	the operation code name
+ * @param opcode		the parsed operation code (output)
+ * @param params		the opration parameters
+ * @param param_count	the number of parameters
+ * @return	the return code
+ */
+returncode_t trigger_applet_operation(opcode_t opcode, char **params, int param_count) {
+
+	if (!jvm_launcher || !jvm_launcher->jvm || !jvm_launcher->env) {
+		char *errMsg = "Error: JVM is not initialized.";
+		logmsg(LOGGING_ERROR, errMsg);
+		send_jsonerror_message(errMsg, RC_ERR_FAILED_FIND_APPCLLOADER);
+		return RC_ERR_JVMNOTLOADED;
+	}
+
+	JNIEnv *env = jvm_launcher->env;
+	JavaVM *jvm = jvm_launcher->jvm;
+
+	logmsg(LOGGING_NORMAL, "Trigging the operation [%s] on the JVM: %p", opcode, jvm);
+	logmsg(LOGGING_NORMAL, "Attaching the JVM(%p) to the current Thread...", jvm);
+	// Attach the current thread to the JVM if needed
+	int attachResult = (*jvm)->AttachCurrentThread(jvm, (void **)&env, NULL);
+	if (attachResult != JNI_OK) {
+		logmsg(LOGGING_ERROR, "Failed to attach current thread to JVM: %p", jvm);
+		return RC_ERR_FAILEDJVM_ATTACH;
+	}
+
+	logmsg(LOGGING_NORMAL, "Loading the Applet loader class: %s", CL_APPLET_CLASSLOADER);
+	// Load the custom classloader
+	jclass appletClassLoaderClass = PTR(env)->FindClass(env, CL_APPLET_CLASSLOADER);
+	if (appletClassLoaderClass == NULL) {
+		logmsg(LOGGING_ERROR, "Failed to find the AppletClassLoader class");
+
+		PTR(PTR(jvm_launcher).jvm)->DetachCurrentThread(jvm);
+		return RC_ERR_FAILED_FIND_APPCLLOADER;
+	}
+
+	jmethodID loadAppletMethodID = PTR(env)->GetMethodID(env, appletClassLoaderClass,
+														CL_APPLET_C2A_METHOD, CL_APPLET_CLASSLOADER_PARAMTYPES);
+	if (loadAppletMethodID == NULL) {
+		logmsg(LOGGING_ERROR, "Method processLoadAppletOp not found.");
+
+		PTR(jvm)->DetachCurrentThread(jvm);
+		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
+	}
+
+	// Create a Java ArrayList and add all parameters to it
+	jclass arrayListClass = PTR(env)->FindClass(env, "java/util/ArrayList");
+	if (arrayListClass == NULL) {
+		char *errMsg = "Error: Class ArrayList not found.";
+		logmsg(LOGGING_ERROR, "Class ArrayList not found.");
+
+		PTR(PTR(jvm_launcher).jvm)->DetachCurrentThread(jvm);
+		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
+	}
+	jmethodID arrayListConstructor = PTR(env)->GetMethodID(env, arrayListClass, "<init>", "()V");
+	jobject parameterList = PTR(env)->NewObject(env, arrayListClass, arrayListConstructor);
+	if (parameterList == NULL) {
+		char *errMsg = "Error: Could not create ArrayList instance.";
+		logmsg(LOGGING_ERROR, "Could not create ArrayList instance.");
+
+		PTR(jvm)->DetachCurrentThread(jvm);
+		return RC_ERR_CANNOT_CLASS_INSTANCE;
+	}
+
+	/// Add the parameters to the list
+	jmethodID addMethod = PTR(env)->GetMethodID(env, arrayListClass, "add", "(Ljava/lang/Object;)Z");
+	if (addMethod == NULL) {
+		logmsg(LOGGING_ERROR, "Method add not found in ArrayList.");
+
+		PTR(jvm)->DetachCurrentThread(jvm);
+		return RC_ERR_CLLOADER_METHOD_NOTFOUND;
+	}
+
+	logmsg(LOGGING_NORMAL, "Creating the parameters to run the operation: %s", opcode);
+	// iterate all and populate parameters
+	for (int i = 0; i < param_count; i++) {
+		char *currentParam = params[i];
+		logmsg(LOGGING_NORMAL, "+-> Param[%d]: %s", (i + 1), currentParam);
+		jstring paramString = PTR(env)->NewStringUTF(env, currentParam);
+		if (paramString == NULL) {
+			logmsg(LOGGING_ERROR, "Could not create Java string for parameter %d", i);
+
+			PTR(jvm)->DetachCurrentThread(jvm);
+			return RC_ERR_CANNOT_CLASS_INSTANCE;
+		}
+		PTR(env)->CallBooleanMethod(env, parameterList, addMethod, paramString);
+	}
+
+	/// Switches the execution based on the chosen opcode
+	switch (opcode) {
+#if defined (_DEBUG_)
+		case OP_LOAD:
+#else
+		case OP_LOAD: {
+			// TODO: Probably load different JVMs for pages with multiple applets, but this is not supported yet
+			return RC_WARN_OPCODE_NOT_SUPPORTED;
+		}
+#endif
+		case OP_UNLOAD: {
+			logmsg(LOGGING_NORMAL, "Calling the applet loader method: %s <-> ParamTypes: %s", CL_APPLET_CLASSLOADER_METHOD, CL_APPLET_CLASSLOADER_PARAMTYPES);
+			// Call the processLoadAppletOp method
+			PTR(env)->CallObjectMethod(env, PTR(jvm_launcher).applet_classloader, loadAppletMethodID, parameterList);
+			break;
+		}
+		case OP_MOVE: {
+			// TODO: Implement the moviment of the applet based on the page attached
+			return RC_WARN_OPCODE_NOT_SUPPORTED;
+		}
+		default:
+			logmsg(LOGGING_ERROR, "Unsupported opcode.");
+			return RC_WARN_OPCODE_NOT_SUPPORTED;
+	}
+
+	// Release resources
+	PTR(jvm)->DetachCurrentThread(jvm);
+
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -217,8 +340,8 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 
 	// Call the AppletClassLoader constructor
 	jmethodID appletClassLoaderInstance = PTR(env)->GetMethodID(env, appletClassLoaderClass, "<init>", "()V");
-	jobject classloader = PTR(env)->NewObject(env, appletClassLoaderClass, appletClassLoaderInstance);
-	if (classloader == NULL) {
+	PTR(jvm_launcher).applet_classloader = PTR(env)->NewObject(env, appletClassLoaderClass, appletClassLoaderInstance); // Saves the object instance
+	if (PTR(jvm_launcher).applet_classloader == NULL) {
 		char *errMsg = "Failed to create AppletClassLoader instance";
 		logmsg(LOGGING_ERROR, errMsg);
 		send_jsonerror_message(errMsg, RC_ERR_FAILED_CRE_APPCLLOADER);
@@ -293,7 +416,7 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 
 	logmsg(LOGGING_NORMAL, "Calling the applet loader method: %s <-> ParamTypes: %s", CL_APPLET_CLASSLOADER_METHOD, CL_APPLET_CLASSLOADER_PARAMTYPES);
 	// Call the processLoadAppletOp method
-	jstring resultString = (jstring)PTR(env)->CallObjectMethod(env, classloader, loadAppletMethodID, parameterList);
+	jstring resultString = (jstring)PTR(env)->CallObjectMethod(env, PTR(jvm_launcher).applet_classloader, loadAppletMethodID, parameterList);
 	if (resultString == NULL) {
 		char *errMsg = "Error: Applet trigger returned null.";
 		logmsg(LOGGING_ERROR, errMsg);
@@ -313,19 +436,18 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 		// Release resources
 		PTR(jvm)->DetachCurrentThread(jvm);
 		PTR(env)->ReleaseStringUTFChars(env, resultString, resultCStr);
-		PTR(jvm)->DetachCurrentThread(jvm);
 		// Clean up local references
-		PTR(env)->DeleteLocalRef(env, classloader);
+		PTR(env)->DeleteLocalRef(env, PTR(jvm_launcher).applet_classloader);
 		PTR(env)->DeleteLocalRef(env, parameterList);
 
 		return RC_ERR_TYPECONVERTING_FAILED;
 	}
 
 	logmsg(LOGGING_NORMAL, "JVM Applet loader response: (%s)", resultCStr);
-	logmsg(LOGGING_NORMAL, "Saving the Applet loader instance for future OP executions: %p (JVM: %p)", classloader, jvm);
+	logmsg(LOGGING_NORMAL, "Saving the Applet loader instance for future OP executions: %p (JVM: %p)", PTR(jvm_launcher).applet_classloader, jvm);
 
-	// Saves the classloader
-	PTR(jvm_launcher).applet_classloader = &classloader;
+	// Saves the classloader class and instance
+	PTR(jvm_launcher).klazz = &appletClassLoaderClass;
 
 	// Release resources
 	PTR(env)->ReleaseStringUTFChars(env, resultString, resultCStr);

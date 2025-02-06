@@ -23,5 +23,7 @@ returncode_t load_applet(const char *op, const char *className, const char *appl
 void launch_jvm(const char *class_name, const char *jar_path, const char *params);
 void process_json(const char *input);
 
+returncode_t process_op_tcpip_request(const char *input);
+
 #endif
 

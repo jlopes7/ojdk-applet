@@ -237,9 +237,66 @@ char* replace_with_crlf(const char* input) {
  * @param params    the Applet parameters
  */
 returncode_t parse_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet) {
-    //return parse_msg_from_chrome_init(jsonmsg, clName, jpath, NULL, tuplet);
     // TODO: Implement
     return 0;
+}
+
+returncode_t omit_stderr() {
+#if defined(_WIN32) || defined(_WIN64)
+    int dev_null = _open("NUL", _O_WRONLY);
+    _dup2(dev_null, _fileno(stderr));
+    _close(dev_null);
+#else
+    int dev_null = open("/dev/null", O_WRONLY);
+    dup2(dev_null, STDERR_FILENO);
+    close(dev_null);
+#endif
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ * Parse and get the property value from the JSON message
+ * @param jsonmsg   the JSON message to be parsed
+ * @param propname  the property name being retrieved
+ * @param propval   the property value to be saved
+ * @return  if something bad happens, otherwise: EXIT_SUCCESS
+ */
+returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void **propval) {
+    cJSON *json_prop;
+    logmsg(LOGGING_NORMAL, "Parsing the JSON Message: %s", jsonmsg);
+    // Parse the JSON string
+    cJSON *json = cJSON_Parse(jsonmsg);
+    if (json == NULL) {
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            logmsg(LOGGING_ERROR, "JSON Parse Error: %s", error_ptr);
+        }
+        else {
+            logmsg(LOGGING_ERROR, "JSON Parse Error: Unknown problem");
+        }
+        return RC_ERR_COULDNOT_PARSEJSON;
+    }
+
+    // Extract the values
+    json_prop = cJSON_GetObjectItemCaseSensitive(json, propname);
+
+    // Gets the extracted values
+    if (cJSON_IsString(json_prop) && (json_prop->valuestring != NULL)) {
+        PTR(propval) = (char *) strdup(json_prop->valuestring);
+    }
+    else if (cJSON_IsNumber(json_prop) || cJSON_IsBool(json_prop)) {
+        PTR(propval) = (int) json_prop->valueint;
+    }
+    else {
+        logmsg(LOGGING_ERROR, "JSON Parse Error: Unknown JSON type");
+        return RC_ERR_COULDNOT_PARSEJSON;
+    }
+
+    // Clean up
+    cJSON_Delete(json);
+
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -441,7 +498,7 @@ returncode_t chrome_read_message(char *buffer) {
         perror("Failed to open test_input.bin");
         return 1;
     }
-    printf("Reading input from test_input.bin...\n");
+    //printf("Reading input from test_input.bin...\n");
 
     if ( !fread(&message_length, 4, 1, file) ) {
         return 0; // End of input
@@ -478,6 +535,31 @@ returncode_t chrome_read_message(char *buffer) {
     }
 
     return EXIT_SUCCESS;
+}
+
+/**
+ * Return the operation code based on the details sent by JSON
+ * @param opcodename the operation code name
+ * @return
+ */
+returncode_t get_opcode(opcode_t *opcode, const char *opcodename) {
+    returncode_t rc = EXIT_SUCCESS;
+
+    if ( strncmp(opcodename, "load_applet", MAX_PATH) == 0 ) {
+        PTR(opcode) = OP_LOAD;
+    }
+    else if ( strncmp(opcodename, "unload_applet", MAX_PATH) == 0 ) {
+        PTR(opcode) = OP_UNLOAD;
+    }
+    else if ( strncmp(opcodename, "move_applet", MAX_PATH) == 0 ) {
+        PTR(opcode) = OP_MOVE;
+    }
+    else {
+        PTR(opcode) = OP_UNKNOWN;
+        rc = RC_WARN_OPCODE_NOT_SUPPORTED;
+    }
+
+    return rc;
 }
 
 returncode_t get_oplauncher_home_directory(char *oplauncher_dir, size_t size) {

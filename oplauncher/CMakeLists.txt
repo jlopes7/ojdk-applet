@@ -121,6 +121,7 @@ set(SOURCES
         iohelper.c
         ini_config.c
         logging.c
+        op_server.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -133,6 +134,7 @@ set(HEADERS
         chrome_ext_comm.h
         ini_config.h
         logging.h
+        op_server.h
 )
 
 # Specific files per platform

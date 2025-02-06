@@ -37,5 +37,11 @@
 #define RC_ERR_INVALID_PATH                 7033
 #define RC_ERR_NOT_INITIALIZED              7034
 #define RC_ERR_IO_OPEN_FAILED               7035
+#define RC_WARN_OPCODE_NOT_SUPPORTED        7036
+#define RC_ERR_FAILED_LOAD_APPLET           7037
+#define RC_ERR_FAILED_CREATE_THREAD         7038
+#define RC_ERR_FAILED_WSL_LOAD              7039
+#define RC_ERR_TCPIP_FAILED                 7040
+#define RC_ERR_TCPIP_CLIENT_CONNECTED       7041
 
 #endif //_ERRCODES_H

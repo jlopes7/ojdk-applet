@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "oplauncher.h"
 #include "logging.h"
+#include "op_server.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "ui/win_tray_ctrl.h"
@@ -15,6 +16,7 @@
 // Global variable to store the JVM pointer
 extern jvm_launcher_t *jvm_launcher;
 
+// Controls the ending of the OpLauncher process
 volatile BOOL End_OpLauncher_Process = FALSE;
 
 /**
@@ -63,6 +65,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (!hInstance) {
         hInstance = GetModuleHandle(NULL);
     }
+
+    omit_stderr(); // to avoid messing with the Chrome native message protocol
 #else
 int main(void) {
 #endif
@@ -193,41 +197,87 @@ int main(void) {
     /*
      * Step 3.2: Trigger the applet execution
      */
-    load_applet (op, class_name, applet_name, archive_url, base_url, codebase, height, width, NULL, NULL, posx, posy);
+    rc = load_applet (op, class_name, applet_name, archive_url, base_url, codebase, height, width, NULL, NULL, posx, posy);
+    if ( !_IS_SUCCESS(rc) ) {
+        logmsg(LOGGING_ERROR, "Could not load the Applet from chrome init (%s). Return code %d", class_name, rc);
+        return RC_ERR_FAILED_LOAD_APPLET;
+    }
 
+    /*
+     * Step 3.3: After the Applet is loaded is time to start the OP server
+     */
+    if ( check_op_server_enabled() ) {
+        rc = start_op_server(process_op_tcpip_request);
+        if ( !_IS_SUCCESS(rc) ) {
+            logmsg(LOGGING_ERROR, "Could not start the OP server. Return code %d", rc);
+        }
+    }
+    else {
+        logmsg(LOGGING_NORMAL, "OP Server is not active");
+    }
+
+    logmsg(LOGGING_NORMAL, "Applet loaded: %s. Waiting from Chrome messages", class_name);
     /*
      * Step 4: Trigger the dispatcher service
      */
     _MEMZERO(buffer, BUFFER_SIZE);
     while (!End_OpLauncher_Process //Controls either if the process should end naturally or not
-                && _IS_SUCCESS(chrome_read_next_message(buffer))) {
-        // Parse the incoming JSON (a simple example without full JSON parsing)
-        /*char *class_name = NULL;
-        char *jar_path = NULL;
+                && _IS_SUCCESS(chrome_read_message(buffer))) {
+        char *new_op;
+        opcode_t opcode;
 
-        data_tuplet_t params[MAXARRAYSIZE];
-        _MEMZERO(params, sizeof(params));
+        logmsg(LOGGING_NORMAL, "New message sent from Chrome: %s", buffer);
 
-        rc = parse_msg_from_chrome(buffer, &class_name, &jar_path, params);
-        if ( !_ISUCCESS(rc) ) {
-            send_jsonerror_message("Could not read the message sent from chrome", rc);
+        // Send the response JSON message right away confirming the reception of the operation
+        send_jsonsuccess_message("Operation received successfully");
+
+        parse_get_jsonprop(buffer, CHROME_EXT_MSG_OP, &new_op);
+
+        get_opcode(&opcode, new_op);
+        if ( opcode == OP_UNKNOWN ) {
+            logmsg(LOGGING_ERROR, "Unsupported opcode.");
+            return RC_WARN_OPCODE_NOT_SUPPORTED;
         }
 
-        if (class_name!=NULL && jar_path!= NULL && strlen(class_name) > 0 && strlen(jar_path) > 0) {
-            //launch_jvm(class_name, jar_path, params);
-        }
-        else {
-            send_jsonerror_message("Invalid message format", RC_ERR_INVALID_MSGFORMAT);
+        // Specific conditions for the OPs
+#if defined(_DEBUG_)
+        if ( opcode == OP_LOAD ) {
+            char *params[1] = { "unload_applet" };
+#else
+        if ( opcode == OP_UNLOAD ) {
+            char *params[1] = { new_op };
+#endif
+            logmsg(LOGGING_NORMAL, "Unloading Applet: %s", class_name);
+            End_OpLauncher_Process = TRUE; // finishes the loop process
+
+            returncode_t rc = trigger_applet_operation(opcode, params, 1);
+            if ( !_IS_SUCCESS(rc) ) {
+                logmsg(LOGGING_ERROR, "Could not unload Applet: %s", class_name);
+            }
+            else {
+                logmsg(LOGGING_NORMAL, "Applet unloaded successfully: %s", class_name);
+            }
         }
 
-        _MEMZERO(buffer, BUFFER_SIZE);
-        free(class_name);
-        free(jar_path);*/
         // TODO: Implement
-        SLEEP_S(1);
+        _MEMZERO(buffer, BUFFER_SIZE);
+        free(new_op);
+
+        // just make the CPU happy!
+        SLEEP_MS(100);
     }
 
     logmsg(LOGGING_NORMAL, "Terminating the launcher...");
+    // Frees all the pointers...
+    free(op);
+    free(class_name);
+    free(applet_name);
+    free(archive_url);
+    free(base_url);
+    free(codebase);
+    free(height);
+    free(width);
+
     // End logging...
     logging_end();
 #if defined(_WIN32) || defined(_WIN64)

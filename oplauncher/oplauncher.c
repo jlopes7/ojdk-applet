@@ -11,6 +11,11 @@ void launch_jvm(const char *class_name, const char *jar_path, const char *params
     // TODO: Implement
 }
 
+returncode_t process_op_tcpip_request(const char *input) {
+	// TODO: Implement
+	return EXIT_SUCCESS;
+}
+
 
 returncode_t load_applet(const char *op, const char *className, const char *appletName, const char *archiveUrl,
 						 const char *baseUrl, const char *codebase, const char *height, const char *width,

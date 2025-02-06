@@ -15,6 +15,7 @@
 
 #define CL_APPLET_CLASSLOADER	            "org/oplauncher/AppletClassLoader"
 #define CL_APPLET_CLASSLOADER_METHOD        "processLoadAppletOp"
+#define CL_APPLET_C2A_METHOD                "processAppletC2A"
 #define CL_APPLET_CLASSLOADER_PARAMTYPES    "(Ljava/util/List;)Ljava/lang/String;"
 
 #ifdef _WIN32
@@ -27,12 +28,14 @@
 typedef struct {
     JavaVM *jvm;
     JNIEnv *env;
-    jobject *applet_classloader;
+    jclass *klazz;
+    jobject applet_classloader;
 } jvm_launcher_t;
 
 void get_executable_directory(char *buffer, size_t size);
 returncode_t jvm_launcher_init(const char *class_name);
 void jvm_launcher_terminate(void);
 returncode_t trigger_applet_execution(const char *class_name, char **params, int param_count);
+returncode_t trigger_applet_operation(opcode_t opcode, char **params, int param_count);
 
 #endif
