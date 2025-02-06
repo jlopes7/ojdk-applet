@@ -61,7 +61,7 @@ BOOL WINAPI consoleCtrlHandler(DWORD ctrlType) {
  */
 #if defined(_WIN32) || defined(_WIN64)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-//int main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) { // OLD testing cmd version
+//int main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) { // OLD, for testing cmd version
     if (!hInstance) {
         hInstance = GetModuleHandle(NULL);
     }
@@ -146,7 +146,7 @@ int main(void) {
      * Step 2: Initializes the JVM
      */
     rc = jvm_launcher_init(CL_APPLET_CLASSLOADER);
-    if (rc != EXIT_SUCCESS) {
+    if ( !_IS_SUCCESS(rc) ) {
         send_jsonerror_message("Could not launch the JVM", rc);
     }
 

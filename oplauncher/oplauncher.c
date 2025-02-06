@@ -11,7 +11,7 @@ void launch_jvm(const char *class_name, const char *jar_path, const char *params
     // TODO: Implement
 }
 
-returncode_t process_op_tcpip_request(const char *input) {
+returncode_t process_op_tcpip_request(const char *jsonmsg) {
 	// TODO: Implement
 	return EXIT_SUCCESS;
 }
