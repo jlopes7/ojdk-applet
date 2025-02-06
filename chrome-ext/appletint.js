@@ -1,5 +1,6 @@
-const OP_LOAD    = "load_applet";
-const OP_COOKIES = "get_cookies";
+const OP_LOAD    = 'load_applet';
+const OP_UNLOAD  = 'unload_applet';
+const OP_COOKIES = 'get_cookies';
 
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 
@@ -23,7 +24,7 @@ const APPLET_HTML_CONTENT_OPEN = `
         }
     </style>
     </head>
-    <body>OJDK Applet Launcher loaded</body>
+    <body id="status">OJDK Applet Launcher loading...</body>
 </html>
 `;
 
@@ -106,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			};
 
 			/// We have to wait a bit for the iframe to be rendered
-			//setTimeout(() => {
+			setTimeout(() => {
 				if (Object.keys(requestMsg).length > 0) {
 					console.info("About to send the request to backend port", requestMsg);
 					/**
@@ -115,18 +116,33 @@ document.addEventListener("DOMContentLoaded", () => {
 					 * ----------------------
 					 * --> Send cookies along with applet details to the background script
 					 */
-					chrome.runtime.sendMessage(requestMsg);
+					chrome.runtime.sendMessage(requestMsg, (resp) => {
+						if (!resp || !resp.response) {
+							console.warn("Received an empty response from the backend", resp);
+							return;
+						}
+
+						console.log("Applet Response computed:", resp);
+						if (resp.action === OP_LOAD) {
+							iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded!';
+							// TODO: Implement
+						}
+					});
 				}
 				else {
 					console.error("Request payload is empty, not sending!");
 				}
-			//}, 100); // delay for 100ms to ensure the page is loaded
+			}, 100); // delay for 100ms to ensure the page is loaded
 		}
 
 		// TODO: Additional operations go here!
 	});
 });
 
+/**
+ * Return all cookies from the backend
+ * @param callback	the callback function to be called when a response is provided
+ */
 function getCookies(callback) {
 	console.info("Requesting cookies from background script...");
 
@@ -142,14 +158,28 @@ function getCookies(callback) {
 	});
 }
 
+/**
+ * Sends an unload message to the port, so the JVM could be disconnected
+ * successfully
+ */
+function sendUnloadMessageToPort() {
+	const commMsg = {
+		op: OP_UNLOAD
+	};
 
-// Handle responses from the background script
-chrome.runtime.onMessage.addListener((message) => {
-	if (message.action === OPLAUNCHER_RESPONSE_CODE) {
-		console.log("Applet Response:", message.response);
-		// TODO: Implement
-	}
-});
+	console.info("Sending unload payload to backend:", commMsg);
+
+	chrome.runtime.sendMessage(commMsg, (resp) => {
+		if (chrome.runtime.lastError) {
+			console.warn("Unload message failed:", chrome.runtime.lastError.message);
+		}
+		else {
+			console.info("Unload message sent successfully:", resp);
+		}
+	});
+
+	return true;
+}
 
 /**
  * Returns the correct Applet position, where it supposed to be rendered in the screen
@@ -194,4 +224,11 @@ function getBasePath(urlString) {
 	const url = new URL(urlString);
 	return url.origin + url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
 }
+
+/* ==========================================================
+            PAGE LEVEL EVENTS FOR THE EXTENSION
+   ========================================================== */
+//Trigger cleanup when the page is about to unload
+window.addEventListener("beforeunload", sendUnloadMessageToPort);
+//window.addEventListener("unload", sendUnloadMessageToPort);
 

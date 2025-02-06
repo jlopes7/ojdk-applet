@@ -1,5 +1,6 @@
-const OP_LOAD    = "load_applet";
-const OP_COOKIES = "get_cookies";
+const OP_LOAD    = 'load_applet';
+const OP_UNLOAD  = 'unload_applet';
+const OP_COOKIES = 'get_cookies';
 
 const NATIVE_SERVICE = "org.oplauncher.applet_service";
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
@@ -48,7 +49,7 @@ if (DEBUG) {
  * Applet background service, used to communicate with the Applet external service
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log(`OP selected: ${message.op} . Expected OP: ${OP_LOAD}`)
+    console.info(`OP selected: ${message.op}. Message:`, message);
     if (message.op === OP_COOKIES) {
         chrome.cookies.getAll({ url: message.url }, (cookies) => {
             if (chrome.runtime.lastError) {
@@ -70,7 +71,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
          * Option 1: Loads the Applet base code and sends its bits as B64 across the wire
          * -> May be a valid option for the future, but for now is deactivated
          */
-        if ( FETCH_REMOTEAPPLET) {
+        if ( FETCH_REMOTEAPPLET ) {
             console.info("Option 1 (fetch remote on Chrome Extension) was selected");
 
             // Extract the applet details from the message
@@ -134,18 +135,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.info("Option 2 (Applet bits is resolved by OPLauncher) was selected");
 
             send2OPLauncher(message, (resp, port) => {
-                console.info("Got a response back from the native host", message)
-                if (sender && sender.tab && sender.tab.id) {
-                    // Send response back to the content script
-                    //chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
-                    chrome.tabs.sendMessage(sender.tab.id, { action: "applet_closed" });
-                }
-                else {
-                    console.warn("Sender tab ID is missing. Cannot send message back.");
-                }
+                let obj = { action: OP_LOAD, response: resp };
+                console.info("Got a response back from the native host", resp)
+                console.info("Sending the response back to the UI", obj);
+                sendResponse ( obj );
             });
         }
     }
+    else if (message.op === OP_UNLOAD) {
+        console.info("About to unload the OJDK Applet Launcher");
+        send2OPLauncher(message, (resp, port) => {
+            let obj = { action: OP_UNLOAD, response: resp };
+            console.info("Sending the unload response back to the UI", obj);
+            sendResponse ( obj );
+        });
+    }
+    else {
+        console.warn(`OP selected no supported: ${message.op} . Expected OPs: ${OP_LOAD}, ${OP_UNLOAD}`)
+    }
+
+    // keeps the channel open
+    return true;
 });
 
 /**
@@ -159,6 +169,7 @@ function send2OPLauncher(messageToNative, callback, callbackErr) {
         console.error("Empty message detected! Aborting...", messageToNative);
         return;
     }
+    let jsonMessage = JSON.stringify(messageToNative);
     console.info("Validating Message Before Sending to OPLauncher:", JSON.stringify(messageToNative, null, 2));
 
     const port = chrome.runtime.connectNative(NATIVE_SERVICE);
@@ -176,8 +187,8 @@ function send2OPLauncher(messageToNative, callback, callbackErr) {
 
     // Ensure onDisconnect is only added once
     port.onDisconnect.addListener(() => {
-        console.error("Native host (OPLauncher) was disconnected.");
-        if (callbackErr) callbackErr(new Error("Connection failed"));
+        console.warn("Native host (OPLauncher) was disconnected.");
+        if (callbackErr) callbackErr("Connection was closed");
     });
 }
 
