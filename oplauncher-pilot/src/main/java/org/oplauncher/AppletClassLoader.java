@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.oplauncher.ErrorCode.*;
+import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
 
 public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     static private final Logger LOGGER = LogManager.getLogger(AppletClassLoader.class);
@@ -56,7 +57,7 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
             /// Load the Applet class !!!
             getAppletController().execute(OpCode.LOAD_APPLET);
 
-            return "";
+            return SUCCESS_RESPONSE;
         }
         catch (Throwable t) {
             LOGGER.error("An error occurred while loading the applet", t);
@@ -64,6 +65,15 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
             JOptionPane.showMessageDialog(null, "An error occurred: " + t.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             throw t;
         }
+    }
+
+    @Override
+    public String processUnloadAppletOp(List<String> parameters) throws OPLauncherException {
+        if ( getAppletController()!=null && getAppletController().getAppletFrame().isVisible() ) {
+            getAppletController().disposeAllApplets();
+        }
+
+        return SUCCESS_RESPONSE;
     }
 
     public AppletClassLoader disposeApplets() {

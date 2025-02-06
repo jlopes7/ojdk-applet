@@ -44,7 +44,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
     @Override
     public String processAppletC2A(List<T> parameters) {
-        LOCK.lock(); // only 1 op at a time!
+        LOCK.lock();
         try {
             String opcode = CommunicationParameterParser.resolveOpCode(parameters);
 
@@ -52,7 +52,10 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
             switch (OpCode.parse(opcode)) {
                 ///  Load all operations as needed
                 case LOAD_APPLET: {
-                    return processAppletC2A(parameters);
+                    return processLoadAppletOp(parameters);
+                }
+                case UNLOAD_APPLET: {
+                    return processUnloadAppletOp(parameters);
                 }
                 default:
                     throw new OPLauncherException(String.format("Unknown or unsupported opcode: [%s]", opcode), ErrorCode.UNSUPPORTED_OPCODE);
@@ -424,6 +427,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
     }
 
     public abstract String processLoadAppletOp(List<T> parameters) throws OPLauncherException;
+    public abstract String processUnloadAppletOp(List<T> parameters) throws OPLauncherException;
 
     // class properties
     private Map<String, FileResource> _fileMap;

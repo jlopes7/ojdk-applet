@@ -2,6 +2,7 @@ package org.oplauncher;
 
 public enum OpCode {
     LOAD_APPLET("load_applet"),
+    UNLOAD_APPLET("unload_applet"),
     CHANGE_POSTION("change_postion"),
     UNKNOWN("unknown")
       ;

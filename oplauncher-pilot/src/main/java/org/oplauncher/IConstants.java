@@ -9,6 +9,8 @@ public interface IConstants {
     static public final String ON_VALUE = "on";
     static public final String OFF_VALUE = "off";
 
+    static public final String SUCCESS_RESPONSE = "success";
+
     static public final int DEFAULT_INIT_POSX = 50;
     static public final int DEFAULT_INIT_POSY = 50;
 
