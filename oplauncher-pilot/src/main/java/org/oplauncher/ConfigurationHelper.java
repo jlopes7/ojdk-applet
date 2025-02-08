@@ -182,6 +182,10 @@ public class ConfigurationHelper {
         return onoff.equalsIgnoreCase(ON_VALUE);
     }
 
+    static public final boolean isOPServerAppTokenActive() {
+        return Boolean.parseBoolean(CONFIG.getProperty(CONCIG_PROP_OP_SERVER_APPTKN_ACTIVE, "true").trim());
+    }
+
     static private boolean configPropAvailable(String prop) {
         return CONFIG.getProperty(prop) != null;
     }

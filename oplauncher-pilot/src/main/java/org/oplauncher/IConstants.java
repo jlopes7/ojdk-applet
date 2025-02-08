@@ -4,6 +4,7 @@ public interface IConstants {
     static public final Object NULLPTR = null;
 
     static public final int NO_PROP_CODE = 0;
+    static public final int EXIT_SUCCESS = 0;
 
     static public final float HEIGHT_RATE_FACTOR = 1.0f;
     static public final char DEFAULT_EOL = '\n';
@@ -11,7 +12,7 @@ public interface IConstants {
     static public final String ON_VALUE = "on";
     static public final String OFF_VALUE = "off";
 
-    static public final String SUCCESS_RESPONSE = "success";
+    static public final String SUCCESS_RESPONSE = "Success";
 
     static public final int DEFAULT_INIT_POSX = 50;
     static public final int DEFAULT_INIT_POSY = 50;
@@ -70,6 +71,7 @@ public interface IConstants {
     static public final String CONFIG_PROP_OP_SERVER_IP = "oplauncher.runtime.opserver.registered_ip";
     static public final String CONFIG_PROP_OP_SERVER_CHROME_TOKEN = "oplauncher.runtime.opserver.chrome.token";
     static public final String CONFIG_PROP_OP_SERVER_CTXROOT = "oplauncher.runtime.opserver.ctxroot";
+    static public final String CONCIG_PROP_OP_SERVER_APPTKN_ACTIVE = "oplauncher.runtime.opserver.apptkn.active";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";

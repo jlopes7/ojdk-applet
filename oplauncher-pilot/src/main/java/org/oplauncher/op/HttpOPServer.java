@@ -66,8 +66,8 @@ public class HttpOPServer extends OPServer {
             LOGGER.info("OP server started successfully on {}:{}", getHost(), getPort());
             SERVER_RUNNING_CONTROL.set(true);
 
-            // Keep the server running for a impossible time, millions of years
-            getServer().awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+            // Keep the server running for a impossible time, millions of years - DISABLED ! only run when the JVM is active, not the other around, should not block the process
+            //getServer().awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
 
             return this;
         }
@@ -81,52 +81,28 @@ public class HttpOPServer extends OPServer {
 
     @Override
     public OPServer stopOPServer() throws OPLauncherException {
-        LOCK.lock();
-        try {
-            LOGGER.warn("Stopping the OP server listening on {}:{}", getHost(), getPort());
-            if (getServer() != null) {
-                getServer().shutdown(DEFAULT_CONNECTION_SETSOTIMEOUT_SEC, MILLISECONDS); // Graceful shutdown with a 5-second timeout
-            }
+        LOGGER.warn("Stopping the OP server listening on {}:{}", getHost(), getPort());
+        if (getServer() != null) {
+            getServer().shutdown(DEFAULT_CONNECTION_SETSOTIMEOUT_SEC, MILLISECONDS); // Graceful shutdown with a 5-second timeout
+        }
 
-            SERVER_RUNNING_CONTROL.set(false);
-            LOGGER.warn("OP server stopped successfully on {}:{}", getHost(), getPort());
-            return this;
-        }
-        finally {
-            LOCK.unlock();
-        }
+        SERVER_RUNNING_CONTROL.set(false);
+        LOGGER.warn("OP server stopped successfully on {}:{}", getHost(), getPort());
+        return this;
     }
 
     @Override
     public boolean isOPServerRunning() {
-        LOCK.lock();
-        try {
-            return SERVER_RUNNING_CONTROL.get();
-        }
-        finally {
-            LOCK.unlock();
-        }
+        return SERVER_RUNNING_CONTROL.get();
     }
 
     protected HttpOPServer triggerSuccessCallbacks(OPMessage message) {
-        LOCK.lock();
-        try {
-            _successCallbacks.stream().parallel().forEach(callback -> callback.call(message));
-            return this;
-        }
-        finally {
-            LOCK.unlock();
-        }
+        _successCallbacks.forEach(callback -> callback.call(message));
+        return this;
     }
     protected HttpOPServer triggerErrorCallbacks(OPMessage message) {
-        LOCK.lock();
-        try {
-            _errorCallbacks.stream().parallel().forEach(callback -> callback.call(message));
-            return this;
-        }
-        finally {
-            LOCK.unlock();
-        }
+        _errorCallbacks.stream().parallel().forEach(callback -> callback.call(message));
+        return this;
     }
 
     @Override

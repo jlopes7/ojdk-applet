@@ -55,7 +55,7 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
             }
 
             /// Load the Applet class !!!
-            getAppletController().execute(OpCode.LOAD_APPLET);
+            getAppletController().executeOP(OpCode.LOAD_APPLET);
 
             return SUCCESS_RESPONSE;
         }
@@ -78,7 +78,15 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
 
     public AppletClassLoader disposeApplets() {
         getAppletController().disposeAllApplets();
+        // Stops the OP server
+        if ( getAppletController().getOPServer().isOPServerRunning() ) {
+            getAppletController().getOPServer().stopOPServer();
+        }
         return this;
+    }
+
+    public String successResponse() {
+        return SUCCESS_RESPONSE;
     }
 
     static public void main(String[] args) {

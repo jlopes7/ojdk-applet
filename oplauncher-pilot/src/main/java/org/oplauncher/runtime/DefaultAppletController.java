@@ -13,6 +13,8 @@ import java.awt.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
+
 public class DefaultAppletController extends AppletController {
     static private final Lock LOCK = new ReentrantLock();
     static private Logger LOGGER = LogManager.getLogger(DefaultAppletController.class);
@@ -74,7 +76,7 @@ public class DefaultAppletController extends AppletController {
             move(getAppletClassLoader().getAppletParameters().getPositionX(),
                  getAppletClassLoader().getAppletParameters().getPositionY());
 
-            return "";
+            return SUCCESS_RESPONSE;
         }
         catch (Exception e) {
             LOGGER.error("Failed to change Applet position", e);
@@ -83,5 +85,18 @@ public class DefaultAppletController extends AppletController {
         finally {
             LOCK.unlock();
         }
+    }
+
+    @Override
+    protected String focusApplet() throws OPLauncherException {
+        getAppletFrame().setAlwaysOnTop(true);
+        getAppletFrame().repaint();
+        return SUCCESS_RESPONSE;
+    }
+
+    @Override
+    protected String blurApplet() throws OPLauncherException {
+        getAppletFrame().setAlwaysOnTop(false);
+        return SUCCESS_RESPONSE;
     }
 }

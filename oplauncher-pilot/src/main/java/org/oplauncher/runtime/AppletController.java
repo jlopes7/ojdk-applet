@@ -27,16 +27,16 @@ public abstract class AppletController {
         _classLoader = clzloader;
         _context = context;
 
-        AppletOPDispatcher opctrl = new AppletOPDispatcher(this);
-        /// Configure the OP server with its observers
-        _opServer = OPServerFactory.newServer(opctrl::processSuccessRequest, opctrl::processFailureRequest);
+        AppletOPDispatcher opdisp = new AppletOPDispatcher(this);
+        /// Configure the OP server with all its observers
+        _opServer = OPServerFactory.newServer(opdisp::processSuccessRequest, opdisp::processFailureRequest);
 
         OPLauncherConfig.instance.registerController(this);
 
         deactivateApplet();
     }
 
-    public String execute(OpCode opcode) throws OPLauncherException {
+    public <T>String executeOP(OpCode opcode, T... parameters) throws OPLauncherException {
         /// Visitor pattern for the respective operation code
         switch (opcode) {
             /**
@@ -51,9 +51,21 @@ public abstract class AppletController {
                 return loadAppletClass();
             }
             /**
+             * Unloads the Applet. This OP destroys all the Applets
+             */
+            case UNLOAD_APPLET: return getAppletClassLoader().disposeApplets().successResponse();
+            /**
              * Change the Applet frame position
              */
             case CHANGE_POSTION: return changeAppletPosition();
+            /**
+             * Asks for Applet Focus
+             */
+            case FOCUS_APPLET: return focusApplet();
+            /**
+             * Removes focus from Applet
+             */
+            case BLUR_APPLET: return blurApplet();
             default: {
                 throw new OPLauncherException(String.format("Unsupported operational code: [%s]", opcode.name()));
             }
@@ -196,8 +208,14 @@ public abstract class AppletController {
                 applet.destroy();
 
                 getAppletFrame().dispose();
+
+                // closes the server
+                if (getOPServer().isOPServerRunning()) {
+                    getOPServer().stopOPServer();
+                }
+
                 // Exit application
-                System.exit(0);
+                System.exit(EXIT_SUCCESS);
             }
         });
 
@@ -235,6 +253,8 @@ public abstract class AppletController {
 
     abstract protected String loadAppletClass() throws OPLauncherException;
     abstract protected String changeAppletPosition() throws OPLauncherException;
+    abstract protected String focusApplet() throws OPLauncherException;
+    abstract protected String blurApplet() throws OPLauncherException;
 
     protected AppletClassLoader getAppletClassLoader() {
         return _classLoader;

@@ -16,6 +16,8 @@ public enum ErrorCode {
     OPSERVER_NOT_AVAILABLE(8012),
     ERROR_LISTENING_OPSERVER(8013),
     JSON_PROTOCOL_ERROR(8014),
+    EMPTY_JSON_PAYLOAD(8015),
+    APPTKN_AUTH_ERROR(8016),
       ;
 
     private ErrorCode(int cd) {
