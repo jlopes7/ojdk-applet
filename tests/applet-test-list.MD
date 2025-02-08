@@ -21,3 +21,4 @@
 - https://courses.worldcampus.psu.edu/public/diagnostics/Applet.html
 - https://www.w3.org/People/mimasa/test/object/java/
 - http://www.pinlady.net/PluginDetect/JavaTester/
+- https://areo.info/mpf/oldapplet.html
