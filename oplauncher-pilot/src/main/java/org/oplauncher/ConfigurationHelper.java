@@ -11,6 +11,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
 import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
+import org.oplauncher.op.OPServerType;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.runtime.AppletContextType;
 import org.oplauncher.runtime.JavaConsoleBuilder;
@@ -26,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.oplauncher.ErrorCode.NO_VALID_CHROME_TOKEN_FOUND;
 import static org.oplauncher.IConstants.*;
 
 public class ConfigurationHelper {
@@ -186,6 +188,31 @@ public class ConfigurationHelper {
 
     static public ArchiveClassLoaderType getArchiveClassLoaderType() {
         return ArchiveClassLoaderType.parse(CONFIG.getProperty(CONFIG_PROP_ARCHIEVE_CLASSLOADER));
+    }
+
+    static public final OPServerType getOPServerType() {
+        return OPServerType.from(CONFIG.getProperty(CONFIG_PROP_OP_SERVER_TYPE, "http"));
+    }
+
+    static public final String getOPServerContextRoot() {
+        return CONFIG.getProperty(CONFIG_PROP_OP_SERVER_CTXROOT, DEFAULT_OPSERVER_CTXROOT);
+    }
+
+    static public final int getOPServerPort() {
+        return Integer.valueOf(CONFIG.getProperty(CONFIG_PROP_OP_SERVER_PORT, "7777")).intValue();
+    }
+
+    static public final String getOPServerAddress() {
+        return CONFIG.getProperty(CONFIG_PROP_OP_SERVER_IP, "127.0.0.1");
+    }
+
+    static public final String getOPChromeToken() {
+        if (configPropAvailable(CONFIG_PROP_OP_SERVER_CHROME_TOKEN)) {
+            return CONFIG.getProperty(CONFIG_PROP_OP_SERVER_CHROME_TOKEN);
+        }
+        else {
+            throw new OPLauncherException("Could not find the OP Chrome token", NO_VALID_CHROME_TOKEN_FOUND);
+        }
     }
 
     static public final String getLogPattern() {

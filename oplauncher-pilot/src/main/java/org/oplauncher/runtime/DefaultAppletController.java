@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.oplauncher.AppletClassLoader;
 import org.oplauncher.ErrorCode;
 import org.oplauncher.OPLauncherException;
+import org.oplauncher.op.OPServerFactory;
 
 import java.applet.Applet;
 import java.applet.AppletContext;
@@ -50,7 +51,12 @@ public class DefaultAppletController extends AppletController {
             applet.init();
 
             LOGGER.info("Now it's time to RENDER the applet Frame");
-            return renderApplet(applet);
+            String response = renderApplet(applet);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Response is provided from the Applet rendering: {}", response);
+            }
+
+            return response;
         }
         catch (Exception e) {
             LOGGER.error("Failed to load Applet class", e);

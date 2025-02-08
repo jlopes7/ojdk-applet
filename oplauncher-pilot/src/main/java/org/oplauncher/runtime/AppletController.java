@@ -1,10 +1,11 @@
 package org.oplauncher.runtime;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.*;
 import org.oplauncher.load.SplashScreen;
+import org.oplauncher.op.OPServer;
+import org.oplauncher.op.OPServerFactory;
 
 import javax.swing.*;
 import java.applet.Applet;
@@ -12,8 +13,6 @@ import java.applet.AppletContext;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -27,6 +26,10 @@ public abstract class AppletController {
     protected AppletController(AppletClassLoader clzloader, AppletContext context) throws OPLauncherException {
         _classLoader = clzloader;
         _context = context;
+
+        AppletOPDispatcher opctrl = new AppletOPDispatcher(this);
+        /// Configure the OP server with its observers
+        _opServer = OPServerFactory.newServer(opctrl::processSuccessRequest, opctrl::processFailureRequest);
 
         OPLauncherConfig.instance.registerController(this);
 
@@ -150,6 +153,11 @@ public abstract class AppletController {
                 getJavaConsoleButton().setEnabled(!ConfigurationHelper.isJavaConsoleActive());
             }
 
+            // Now it's time to start the server (if not running already)
+            if (!getOPServer().isOPServerRunning()) {
+                getOPServer().startOPServer();
+            }
+
             LOGGER.info("Applet successfully loaded !");
 
             return "";
@@ -267,6 +275,10 @@ public abstract class AppletController {
         finally {
             LOCK.unlock();
         }
+    }
+
+    public OPServer getOPServer() {
+        return _opServer;
     }
 
     protected AppletController defineAppletFrame(String title) {
@@ -393,4 +405,6 @@ public abstract class AppletController {
     private JButton _appletReloadButton;
     private JButton _appletInfoButton;
     private JButton _javaConsoleButton;
+
+    private OPServer _opServer;
 }

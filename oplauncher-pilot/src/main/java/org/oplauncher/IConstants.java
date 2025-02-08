@@ -3,6 +3,8 @@ package org.oplauncher;
 public interface IConstants {
     static public final Object NULLPTR = null;
 
+    static public final int NO_PROP_CODE = 0;
+
     static public final float HEIGHT_RATE_FACTOR = 1.0f;
     static public final char DEFAULT_EOL = '\n';
     static public final char REGISTERED_CHAR = (char) 174;
@@ -13,6 +15,12 @@ public interface IConstants {
 
     static public final int DEFAULT_INIT_POSX = 50;
     static public final int DEFAULT_INIT_POSY = 50;
+
+    static public final int DEFAULT_CONNECTION_BACKLOG = 5;
+    static public final int DEFAULT_CONNECTION_SETSOTIMEOUT_SEC = 5000;
+
+    static public final String DEFAULT_OPSERVER_CTXROOT = "oplauncher-op";
+    static public final String HTTP_HEADER_CHROMEEXT_TKN = "X-Chrome-Extension-Tkn";
 
     static public final String CONFIG_FILENAME = "config.properties";
     static public final String CONFIG_LOG_FILENAME = "log4j2.xml";
@@ -57,6 +65,11 @@ public interface IConstants {
     static public final String CONFIG_PROP_JAVACONSOLE_TYPE = "oplauncher.config.java.console.type";
     static public final String CONFIG_PROP_APPLETFRAME_ICON = "oplauncher.runtime.icon";
     static public final String CONFIG_PROP_SPLASH_IMAGE = "oplauncher.splash.image";
+    static public final String CONFIG_PROP_OP_SERVER_TYPE = "oplauncher.runtime.opserver.type";
+    static public final String CONFIG_PROP_OP_SERVER_PORT = "oplauncher.runtime.opserver.port";
+    static public final String CONFIG_PROP_OP_SERVER_IP = "oplauncher.runtime.opserver.registered_ip";
+    static public final String CONFIG_PROP_OP_SERVER_CHROME_TOKEN = "oplauncher.runtime.opserver.chrome.token";
+    static public final String CONFIG_PROP_OP_SERVER_CTXROOT = "oplauncher.runtime.opserver.ctxroot";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";

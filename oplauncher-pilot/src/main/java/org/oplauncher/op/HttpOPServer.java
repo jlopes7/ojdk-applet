@@ -1,0 +1,169 @@
+package org.oplauncher.op;
+
+import org.apache.http.impl.nio.bootstrap.HttpServer;
+import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.oplauncher.ConfigurationHelper;
+import org.oplauncher.OPLauncherException;
+
+import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.oplauncher.ErrorCode.ERROR_LISTENING_OPSERVER;
+import static org.oplauncher.IConstants.DEFAULT_CONNECTION_BACKLOG;
+import static org.oplauncher.IConstants.DEFAULT_CONNECTION_SETSOTIMEOUT_SEC;
+
+public class HttpOPServer extends OPServer {
+    static private final Lock LOCK = new ReentrantLock();
+    static private final Logger LOGGER = LogManager.getLogger(HttpOPServer.class);
+    private final AtomicBoolean SERVER_RUNNING_CONTROL = new AtomicBoolean(false);
+
+    protected HttpOPServer(String host, int port) {
+        super(host, port);
+
+        _successCallbacks = Collections.synchronizedList(new ArrayList<OPCallback>());
+        _errorCallbacks   = Collections.synchronizedList(new ArrayList<OPCallback>());
+    }
+
+    public OPServer startOPServer() throws OPLauncherException {
+        LOCK.lock();
+        try {
+            String ctxroot = String.format("/%s", ConfigurationHelper.getOPServerContextRoot());
+            LOGGER.info("About to start the OP server listening on {} => {}:{}", ctxroot, getHost(), getPort());
+
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("-> Socket SoTimeout: {} mills", DEFAULT_CONNECTION_SETSOTIMEOUT_SEC);
+                LOGGER.debug("-> Socket backlog size: {}", DEFAULT_CONNECTION_BACKLOG);
+                LOGGER.debug("-> Number of thread counts: {} threads", Runtime.getRuntime().availableProcessors());
+            }
+            IOReactorConfig reactorConfig = IOReactorConfig.custom()
+                                                            .setSoTimeout(DEFAULT_CONNECTION_SETSOTIMEOUT_SEC)
+                                                            .setBacklogSize(DEFAULT_CONNECTION_BACKLOG)
+                                                            .setIoThreadCount(Runtime.getRuntime().availableProcessors())
+                                                            .setSoKeepAlive(true)
+                                                            .setTcpNoDelay(true)
+                                                            .build();
+            // Configure the server
+            _server = ServerBootstrap.bootstrap()
+                        .setListenerPort(getPort())
+                        .setListenerPort(getPort())
+                        .setLocalAddress(InetAddress.getByName(getHost()))
+                        .registerHandler(ctxroot, new OPHttpHandler(this))
+                        .setIOReactorConfig(reactorConfig)
+                    .create();
+            // Start the server
+            getServer().start();
+
+            LOGGER.info("OP server started successfully on {}:{}", getHost(), getPort());
+            SERVER_RUNNING_CONTROL.set(true);
+
+            // Keep the server running for a impossible time, millions of years
+            getServer().awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+
+            return this;
+        }
+        catch (Exception e) {
+            throw new OPLauncherException(e, ERROR_LISTENING_OPSERVER);
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    @Override
+    public OPServer stopOPServer() throws OPLauncherException {
+        LOCK.lock();
+        try {
+            LOGGER.warn("Stopping the OP server listening on {}:{}", getHost(), getPort());
+            if (getServer() != null) {
+                getServer().shutdown(DEFAULT_CONNECTION_SETSOTIMEOUT_SEC, MILLISECONDS); // Graceful shutdown with a 5-second timeout
+            }
+
+            SERVER_RUNNING_CONTROL.set(false);
+            LOGGER.warn("OP server stopped successfully on {}:{}", getHost(), getPort());
+            return this;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    @Override
+    public boolean isOPServerRunning() {
+        LOCK.lock();
+        try {
+            return SERVER_RUNNING_CONTROL.get();
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    protected HttpOPServer triggerSuccessCallbacks(OPMessage message) {
+        LOCK.lock();
+        try {
+            _successCallbacks.stream().parallel().forEach(callback -> callback.call(message));
+            return this;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+    protected HttpOPServer triggerErrorCallbacks(OPMessage message) {
+        LOCK.lock();
+        try {
+            _errorCallbacks.stream().parallel().forEach(callback -> callback.call(message));
+            return this;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    @Override
+    public OPServer registerSuccessCallback(OPCallback callback) {
+        LOCK.lock();
+        try {
+            if (callback != null) {
+                _successCallbacks.add(callback); // TODO: in the future implement a functionality to not have duplicate "callbacks"
+            }
+            return this;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    @Override
+    public OPServer registerFailureCallback(OPCallback callback) {
+        LOCK.lock();
+        try {
+            if (callback != null) {
+                _errorCallbacks.add(callback); // TODO: in the future implement a functionality to not have duplicate "callbacks"
+            }
+            return this;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    protected HttpServer getServer() {
+        return _server;
+    }
+
+    // class properties
+    private HttpServer _server;
+
+    private List<OPCallback> _successCallbacks;
+    private List<OPCallback> _errorCallbacks;
+}
