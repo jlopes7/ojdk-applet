@@ -8,6 +8,8 @@ const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
 const FETCH_REMOTEAPPLET = false;
 const DEBUG = false;
 
+const DEFAULT_APP_TOKEN = "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT";
+
 const APPLET_HTML_CONTENT_CLOSED = `
 <html>
   	<head>
@@ -144,10 +146,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.op === OP_UNLOAD) {
         console.info("About to unload the OJDK Applet Launcher");
-        send2OPLauncher(message, (resp, port) => {
-            let obj = { action: OP_UNLOAD, response: resp };
-            console.info("Sending the unload response back to the UI", obj);
-            sendResponse ( obj );
+        send2OPLauncherJSONPort(message, (resp, port) => {
+            console.info("Sending the unload response back to the UI", resp);
+            sendResponse ( resp );
         });
     }
     else {
@@ -157,6 +158,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // keeps the channel open
     return true;
 });
+
+/**
+ * Send the mssage to the OP Server using Chrome's HTTP/2 JSON port
+ * @param messageToNative   the applet computed message
+ * @param callback          the callback function. Called when the applet responds back to the Browser
+ * @param callbackErr       the error callback function. Called when something bad happened
+ * @returns {boolean}       for async processing
+ */
+function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
+    chrome.storage.local.get(["httpPort", "hostURL", "contextRoot", "personalToken"], function (config) {
+        const host = config.hostURL || "127.0.0.1";
+        const contextRoot = config.contextRoot || "oplauncher-op";
+        const port = config.httpPort || 7777;
+        const token = config.personalToken || DEFAULT_APP_TOKEN;
+
+        if (messageToNative) {
+            Object.assign(messageToNative, {
+                _tkn_: token
+            });
+        }
+        console.info("Received unload message from content script. Sending to backend...", messageToNative);
+
+        const requestMsg = JSON.stringify(messageToNative);
+        /*const requestMsg = JSON.stringify(messageToNative);
+        const blob = new Blob([requestMsg], {type: "application/json"});*/
+
+        const backendURL = `http://${host}:${port}/${contextRoot}`;
+        console.info("Sending payload to backend URL:", backendURL);
+        fetch(backendURL, {
+            method: "POST",
+            body: requestMsg,
+            headers: {
+                "Content-Type": "application/json",
+                "X-Chrome-Extension-Tkn": chrome.runtime.id
+            },
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            console.info("Successfully receive a response from the OP Server")
+            if (callback) callback(data);
+        })
+        .catch(error => {
+            console.warn("Failed to send unload message via fetch:", error);
+            if (callbackErr) callbackErr(error);
+        })
+    });
+
+    return true;
+}
 
 /**
  * Sends a message to OPLauncher

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPLauncher Extension Settings</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 10px; width: 300px; }
+        label { display: block; margin-top: 10px; }
+        input, button { width: 100%; padding: 5px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+<h3>OPLauncher Settings</h3>
+
+<label for="httpPort">HTTP/2 Port:</label>
+<input type="number" id="httpPort" placeholder="Enter port number">
+
+<label for="hostURL">Backend URL:</label>
+<input type="text" id="hostURL" placeholder="Enter Backend URL">
+
+<label for="contextRoot">Context Root:</label>
+<input type="text" id="contextRoot" placeholder="Enter the context root">
+
+<label for="personalToken">Personal Token:</label>
+<input type="text" id="personalToken" placeholder="Enter Token">
+
+<button id="saveSettings">Save Settings</button>
+
+<p id="statusMessage" style="color: green;"></p>
+
+<script src="settings.js"></script>
+</body>
+</html>

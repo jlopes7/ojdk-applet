@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "OJDK Applet Launcher",
 	"version": "1.0.0.1",
-	"permissions": ["cookies", "nativeMessaging", "scripting"],
+	"permissions": ["cookies", "nativeMessaging", "scripting", "storage"],
 	"host_permissions": ["<all_urls>"],
 	"content_scripts": [{
 		"matches": ["<all_urls>"],
@@ -13,6 +13,13 @@
 		"service_worker": "background.js"
 	},
 	"action": {
-		"default_title": "OJDK Applet Launcher"
+		"default_popup": "settings.html",
+		"default_title": "OJDK Applet Launcher Extension"
+	},
+	"icons": {
+		"16": "icons/oplauncher_icon_16x16.png",
+		"32": "icons/oplauncher_icon_32x32.png",
+		"48": "icons/oplauncher_icon_48x48.png",
+		"128": "icons/oplauncher_icon_128x128.png"
 	}
 }

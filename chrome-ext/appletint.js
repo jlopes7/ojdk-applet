@@ -162,7 +162,7 @@ function getCookies(callback) {
  * Sends an unload message to the port, so the JVM could be disconnected
  * successfully
  */
-function sendUnloadMessageToPort() {
+function sendUnloadMessageToBackgroundPort() {
 	const commMsg = {
 		op: OP_UNLOAD
 	};
@@ -171,7 +171,7 @@ function sendUnloadMessageToPort() {
 
 	chrome.runtime.sendMessage(commMsg, (resp) => {
 		if (chrome.runtime.lastError) {
-			console.warn("Unload message failed:", chrome.runtime.lastError.message);
+			console.warn(`Unload message failed ${resp}`);
 		}
 		else {
 			console.info("Unload message sent successfully:", resp);
@@ -179,6 +179,26 @@ function sendUnloadMessageToPort() {
 	});
 
 	return true;
+}
+
+/**
+ * Sends an unload op to the Applet Controller using HTTP/2 JSON
+ */
+function sendUnloadMessageToJSONPort() {
+	console.warn("About to close all active Applet instances...");
+
+	const commMsg = {
+		op: OP_UNLOAD
+	};
+
+	console.info("Sending unload payload to backend:", commMsg);
+
+	const backendURL = "http://localhost:7777/oplauncher-op"; // Update this to your backend if needed
+	const blob = new Blob([commMsg], { type: "application/json" });
+
+	if (!navigator.sendBeacon(backendURL, blob)) {
+		console.warn("Failed to send unload message via Beacon API.");
+	}
 }
 
 /**
@@ -228,7 +248,7 @@ function getBasePath(urlString) {
 /* ==========================================================
             PAGE LEVEL EVENTS FOR THE EXTENSION
    ========================================================== */
-//Trigger cleanup when the page is about to unload
-window.addEventListener("beforeunload", sendUnloadMessageToPort);
-//window.addEventListener("unload", sendUnloadMessageToPort);
+//Trigger cleanup when the page is about to unload - TODO: Currently disabled since it needs to be reviewed
+//window.addEventListener("pagehide", sendUnloadMessageToBackgroundPort);
+window.addEventListener("unload", sendUnloadMessageToBackgroundPort);
 
