@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.oplauncher.ErrorCode.*;
+import static org.oplauncher.IConstants.EXIT_SUCCESS;
 import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
 
 public class AppletClassLoader extends AbstractAppletClassLoader<String> {
@@ -79,9 +80,10 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     public AppletClassLoader disposeApplets() {
         getAppletController().disposeAllApplets();
         // Stops the OP server
-        if ( getAppletController().getOPServer().isOPServerRunning() ) {
+        /*if ( getAppletController().getOPServer().isOPServerRunning() ) {
             getAppletController().getOPServer().stopOPServer();
-        }
+        }*/
+        System.exit(EXIT_SUCCESS);
         return this;
     }
 

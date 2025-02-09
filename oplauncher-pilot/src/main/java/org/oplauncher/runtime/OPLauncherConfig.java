@@ -31,6 +31,7 @@ public final class OPLauncherConfig {
 
     private OPLauncherConfig() {}
 
+    // TODO: In the future, multiple controllers could be implemented
     protected void registerController(final AppletController controller) {
         LOCK.lock();
         try {

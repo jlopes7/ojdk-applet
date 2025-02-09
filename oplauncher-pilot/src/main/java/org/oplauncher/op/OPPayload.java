@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.oplauncher.OpCode.UNKNOWN;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OPPayload {
 
@@ -29,7 +31,7 @@ public class OPPayload {
     }
 
     public OpCode getOpCode() {
-        return _optype;
+        return Optional.ofNullable(_optype).orElse(UNKNOWN);
     }
 
     public List<String> getParameters() {
@@ -57,7 +59,7 @@ public class OPPayload {
     // class properties
     @JsonProperty("_tkn_")
     private String _token;
-    @JsonProperty("opcode")
+    @JsonProperty("op")
     private OpCode _optype;
 
     @JsonProperty("px")

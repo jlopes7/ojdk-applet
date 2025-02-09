@@ -71,6 +71,7 @@ public interface IConstants {
     static public final String CONFIG_PROP_OP_SERVER_IP = "oplauncher.runtime.opserver.registered_ip";
     static public final String CONFIG_PROP_OP_SERVER_CHROME_TOKEN = "oplauncher.runtime.opserver.chrome.token";
     static public final String CONFIG_PROP_OP_SERVER_CTXROOT = "oplauncher.runtime.opserver.ctxroot";
+    static public final String CONFIG_PROP_OP_SERVER_APPTKN = "oplauncher.runtime.opserver.apptkn";
     static public final String CONCIG_PROP_OP_SERVER_APPTKN_ACTIVE = "oplauncher.runtime.opserver.apptkn.active";
 
     static public final String APPLETPARAM_WIDTH = "width";

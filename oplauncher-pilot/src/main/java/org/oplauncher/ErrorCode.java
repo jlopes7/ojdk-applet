@@ -18,6 +18,7 @@ public enum ErrorCode {
     JSON_PROTOCOL_ERROR(8014),
     EMPTY_JSON_PAYLOAD(8015),
     APPTKN_AUTH_ERROR(8016),
+    NO_VALID_APP_TOKEN(8017),
       ;
 
     private ErrorCode(int cd) {

@@ -4,8 +4,6 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.oplauncher.AppletParameters;
-import org.oplauncher.CommunicationParameterParser;
 import org.oplauncher.ConfigurationHelper;
 import org.oplauncher.OPLauncherException;
 import org.oplauncher.op.OPMessage;
@@ -29,11 +27,14 @@ public class AppletOPDispatcher {
 
         OPPayload payload = message.getPayload();
         if (payload!=null) {
-            String msgtkn = new String(Hex.decodeHex(payload.getToken()));
-            String dthash = new SimpleDateFormat("yyyyMMMMdd").format(new Date(System.currentTimeMillis()));
+            String msgtkn = payload.getToken();
+            String apptkn = ConfigurationHelper.getOPChromeAppToken();
 
-            // TODO: this will fail at the turn of the day, review this method (1 potention fail point per day, at midnight)
-            return msgtkn.equals(dthash);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Given AppToken[{}], Configured AppToken[{}]", msgtkn, apptkn);
+            }
+
+            return msgtkn.equals(apptkn);
         }
         else {
             throw new OPLauncherException("Invalid payload. Empty payload.", EMPTY_JSON_PAYLOAD);

@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.oplauncher.ErrorCode.NO_VALID_APP_TOKEN;
 import static org.oplauncher.ErrorCode.NO_VALID_CHROME_TOKEN_FOUND;
 import static org.oplauncher.IConstants.*;
 
@@ -216,6 +217,15 @@ public class ConfigurationHelper {
         }
         else {
             throw new OPLauncherException("Could not find the OP Chrome token", NO_VALID_CHROME_TOKEN_FOUND);
+        }
+    }
+
+    static public final String getOPChromeAppToken() {
+        if ( configPropAvailable(CONFIG_PROP_OP_SERVER_APPTKN) ) {
+            return CONFIG.getProperty(CONFIG_PROP_OP_SERVER_APPTKN);
+        }
+        else {
+            throw new OPLauncherException("Could not find the Application token", NO_VALID_APP_TOKEN);
         }
     }
 
