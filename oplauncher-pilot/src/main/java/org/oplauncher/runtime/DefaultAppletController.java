@@ -13,6 +13,7 @@ import java.awt.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.oplauncher.IConstants.OP_PARAM_LOW_VISIBILITY;
 import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
 
 public class DefaultAppletController extends AppletController {
@@ -88,15 +89,39 @@ public class DefaultAppletController extends AppletController {
     }
 
     @Override
-    protected String focusApplet() throws OPLauncherException {
-        getAppletFrame().setAlwaysOnTop(true);
+    protected String focusApplet(String ...params) throws OPLauncherException {
+        final int LOWVIS = 0;
+        getAppletFrame().setVisible(true);
+        if (params != null && params.length > 0) {
+            if (params[LOWVIS].trim().equalsIgnoreCase(OP_PARAM_LOW_VISIBILITY)) {
+                getAppletFrame().setAlwaysOnTop(false);
+                //getAppletFrame().setFocusable(true);
+            }
+            else {
+                getAppletFrame().setAlwaysOnTop(true);
+            }
+        }
+        else {
+            getAppletFrame().setAlwaysOnTop(true);
+        }
         getAppletFrame().repaint();
         return SUCCESS_RESPONSE;
     }
 
     @Override
-    protected String blurApplet() throws OPLauncherException {
+    protected String blurApplet(String ...params) throws OPLauncherException {
+        final int LOWVIS = 0;
         getAppletFrame().setAlwaysOnTop(false);
+
+        if (params != null && params.length > 0) {
+            if (!params[LOWVIS].trim().equalsIgnoreCase(OP_PARAM_LOW_VISIBILITY)) {
+                getAppletFrame().setVisible(false);
+            }
+        }
+        else {
+            getAppletFrame().setVisible(false);
+        }
+
         return SUCCESS_RESPONSE;
     }
 }

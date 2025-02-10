@@ -78,7 +78,7 @@ public class AppletOPDispatcher {
 
                 prepareExecutionIfNecessary(payload)
                         .getAppletController()
-                        .executeOP(payload.getOpCode());
+                        .executeOP(payload.getOpCode(), payload.getParameters().toArray(new String[0]));
             }
             else {
                 throw new OPLauncherException("The OP message could be verified: "+message.getPayload().getToken(), APPTKN_AUTH_ERROR);

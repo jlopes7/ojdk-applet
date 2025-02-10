@@ -61,11 +61,11 @@ public abstract class AppletController {
             /**
              * Asks for Applet Focus
              */
-            case FOCUS_APPLET: return focusApplet();
+            case FOCUS_APPLET: return focusApplet((String[]) parameters);
             /**
              * Removes focus from Applet
              */
-            case BLUR_APPLET: return blurApplet();
+            case BLUR_APPLET: return blurApplet((String[]) parameters);
             default: {
                 throw new OPLauncherException(String.format("Unsupported operational code: [%s]", opcode.name()));
             }
@@ -76,6 +76,7 @@ public abstract class AppletController {
         if ( getAppletFrame().isDisplayable() ) {
             getAppletFrame().dispose();
         }
+
          return this;
     }
 
@@ -253,8 +254,8 @@ public abstract class AppletController {
 
     abstract protected String loadAppletClass() throws OPLauncherException;
     abstract protected String changeAppletPosition() throws OPLauncherException;
-    abstract protected String focusApplet() throws OPLauncherException;
-    abstract protected String blurApplet() throws OPLauncherException;
+    abstract protected String focusApplet(String ...parameters) throws OPLauncherException;
+    abstract protected String blurApplet(String ...parameters) throws OPLauncherException;
 
     protected AppletClassLoader getAppletClassLoader() {
         return _classLoader;

@@ -13,6 +13,7 @@ public interface IConstants {
     static public final String OFF_VALUE = "off";
 
     static public final String SUCCESS_RESPONSE = "Success";
+    static public final String OP_PARAM_LOW_VISIBILITY = "low_visibility";
 
     static public final int DEFAULT_INIT_POSX = 50;
     static public final int DEFAULT_INIT_POSY = 50;
