@@ -1,6 +1,9 @@
 const OP_LOAD    = 'load_applet';
 const OP_UNLOAD  = 'unload_applet';
 const OP_COOKIES = 'get_cookies';
+const OP_BLUR    = "blur_applet";
+const OP_FOCUS   = "focus_applet";
+const OP_MOVE    = "move_applet";
 
 const NATIVE_SERVICE = "org.oplauncher.applet_service";
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
@@ -8,30 +11,11 @@ const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
 const FETCH_REMOTEAPPLET = false;
 const DEBUG = false;
 
-const DEFAULT_APP_TOKEN = "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT";
+const JSON_BACKEND = "json";
+const WS2_BACKEND  = "websocket";
+const SELECTED_BACKEND_TP = JSON_BACKEND;
 
-const APPLET_HTML_CONTENT_CLOSED = `
-<html>
-  	<head>
-  	<style>
-    	html, body { 
-			width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Verdana, sans-serif;
-            font-weight: bold;
-            color: darkblue;
-            font-size: 14px;
-            overflow: hidden; /* Remove scrollbars */
-            background: bisque;
-        }
-    </style>
-    </head>
-    <body>OJDK Applet Launcher finished</body>
-</html>
-`;
+const DEFAULT_APP_TOKEN = "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT";
 
 if (DEBUG) {
     /**
@@ -147,9 +131,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.op === OP_UNLOAD) {
         console.info("About to unload the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
-            console.info("Sending the unload response back to the UI", resp);
+            console.info("Got a response back from the 'unload' OP from the OPLauncher", resp);
             sendResponse ( resp );
         });
+    }
+    else if (message.op === OP_BLUR) {
+        console.info("About to blur the OJDK Applet Launcher");
+        send2OPLauncherJSONPort(message, (resp, port) => {
+            console.info("Got a response back from the 'blur' OP from the OPLauncher", resp);
+            sendResponse ( resp );
+        });
+    }
+    else if (message.op === OP_FOCUS) {
+        console.info("About to focus the OJDK Applet Launcher");
+        send2OPLauncherJSONPort(message, (resp, port) => {
+            console.info("Got a response back from the 'focus' OP from the OPLauncher", resp);
+            sendResponse ( resp );
+        });
+    }
+    else if (message.op === OP_MOVE) {
+        console.info("About to move the OJDK Applet Launcher");
+        send2OPLauncherJSONPort(message, (resp, port) => {
+            console.info("Got a response back from the 'move' OP from the OPLauncher", resp);
+            sendResponse ( resp );
+        })
     }
     else {
         console.warn(`OP selected no supported: ${message.op} . Expected OPs: ${OP_LOAD}, ${OP_UNLOAD}`)
@@ -172,6 +177,7 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
         const contextRoot = config.contextRoot || "oplauncher-op";
         const port = config.httpPort || 7777;
         const token = config.personalToken || DEFAULT_APP_TOKEN;
+        const backendURL = `http://${host}:${port}/${contextRoot}`;
 
         if (messageToNative) {
             Object.assign(messageToNative, {
@@ -181,10 +187,18 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
         console.info("Received unload message from content script. Sending to backend...", messageToNative);
 
         const requestMsg = JSON.stringify(messageToNative);
-        /*const requestMsg = JSON.stringify(messageToNative);
-        const blob = new Blob([requestMsg], {type: "application/json"});*/
+        // Send to OPLauncher
+        send2port(SELECTED_BACKEND_TP, requestMsg, backendURL, callback, callbackErr);
+    });
 
-        const backendURL = `http://${host}:${port}/${contextRoot}`;
+    return true;
+}
+
+/**
+ * Send the payload to the backend port based on the PROTO send as parameter
+ */
+function send2port(proto, requestMsg, backendURL, callback, callbackErr) {
+    if ( proto === JSON_BACKEND ) {
         console.info("Sending payload to backend URL:", backendURL);
         fetch(backendURL, {
             method: "POST",
@@ -202,10 +216,12 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
         .catch(error => {
             console.warn("Failed to send unload message via fetch:", error);
             if (callbackErr) callbackErr(error);
-        })
-    });
-
-    return true;
+        });
+    }
+    // TODO: Implement other port types
+    else {
+        throw new Error(`Unsupported proto: ${proto}`);
+    }
 }
 
 /**

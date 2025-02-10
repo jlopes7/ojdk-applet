@@ -1,10 +1,18 @@
 const OP_LOAD    = 'load_applet';
 const OP_UNLOAD  = 'unload_applet';
 const OP_COOKIES = 'get_cookies';
+const OP_BLUR    = "blur_applet";
+const OP_FOCUS   = "focus_applet";
+const OP_MOVE    = "move_applet";
+
+const LOW_VISIBILITY_ST = "low_visibility";
 
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 
 const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
+/* ===========================================================
+ 	HTML CONTENT FOR THE APPLET IFRAME
+   =========================================================== */
 const APPLET_HTML_CONTENT_OPEN = `
 <html>
   	<head>
@@ -27,6 +35,7 @@ const APPLET_HTML_CONTENT_OPEN = `
     <body id="status">OJDK Applet Launcher loading...</body>
 </html>
 `;
+/* =========================================================== */
 
 /**
  * First it scans for <applet/> tags
@@ -163,22 +172,60 @@ function getCookies(callback) {
  * successfully
  */
 function sendUnloadMessageToBackgroundPort() {
-	const commMsg = {
+	dispatchToBackground({
 		op: OP_UNLOAD
-	};
-
-	console.info("Sending unload payload to backend:", commMsg);
-
-	chrome.runtime.sendMessage(commMsg, (resp) => {
-		if (chrome.runtime.lastError) {
-			console.warn(`Unload message failed ${resp}`);
-		}
-		else {
-			console.info("Unload message sent successfully:", resp);
-		}
 	});
 
+	let iframe = document.getElementById(OPLAUNCHER_IFRAME_ID);
+	if (iframe) {
+		iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher unloaded.';
+	}
+
 	return true;
+}
+
+/**
+ * Sends an blue message to the port, so the JVM could be placed behind, another window
+ */
+function sendBlurFocusMessageToBackgroundPort(visible, lowVisibility) {
+	if (visible) {
+		const commMsg = {
+			op: OP_FOCUS
+		};
+		if (lowVisibility) Object.assign(commMsg, {
+			parameters: [LOW_VISIBILITY_ST]
+		});
+
+		dispatchToBackground(commMsg);
+	}
+	else {
+		const commMsg = {
+			op: OP_BLUR
+		};
+		if (lowVisibility) Object.assign(commMsg, {
+			parameters: [LOW_VISIBILITY_ST]
+		});
+
+		dispatchToBackground(commMsg);
+	}
+
+	return true;
+}
+
+/**
+ * Dispatch custom requests to Chrome's beckend framework
+ * @param commMsg	the JSON message to be sent to the backend
+ */
+function dispatchToBackground(commMsg) {
+	console.info("About to send the following request to Chrome's backend framework", commMsg);
+	chrome.runtime.sendMessage(commMsg, (resp) => {
+		if (chrome.runtime.lastError) {
+			console.warn(`OP failed ${resp}`);
+		}
+		else {
+			console.info("OP sent successfully:", resp);
+		}
+	});
 }
 
 /**
@@ -212,6 +259,28 @@ function getAppletElementPosition(element) {
 	const y = rect.top + window.scrollY;
 
 	return { x, y };
+}
+
+/**
+ * Update applet position and send to backend
+ */
+function updateAppletPosition() {
+	const iframe = document.getElementById(OPLAUNCHER_IFRAME_ID);
+	if (!iframe) {
+		console.warn("Could not find any Applet render container in the HTML page")
+		return;
+	}
+
+	const position = getAbsoluteScreenPosition(iframe);
+
+	const message = {
+		op: OP_MOVE,
+		px: position.x,
+		py: position.y
+	};
+
+	console.info("Sending updated applet position:", message);
+	chrome.runtime.sendMessage(message);
 }
 
 /**
@@ -251,4 +320,28 @@ function getBasePath(urlString) {
 //Trigger cleanup when the page is about to unload - TODO: Currently disabled since it needs to be reviewed
 //window.addEventListener("pagehide", sendUnloadMessageToBackgroundPort);
 window.addEventListener("unload", sendUnloadMessageToBackgroundPort);
+document.addEventListener("visibilitychange", function () {
+	if (document.hidden) {
+		sendBlurFocusMessageToBackgroundPort(false, false);
+	}
+	else {
+		sendBlurFocusMessageToBackgroundPort(true, false);
+	}
+});
+// TODO: Needs to fix this focus problem when the new focus is to Applet itself
+/*window.addEventListener("blur", function () {
+	console.info("Chrome window lost focus.");
+	sendBlurFocusMessageToBackgroundPort(false, false); // Send blur event
+});
+window.addEventListener("focus", function () {
+	console.info("Chrome window gained focus.");
+	sendBlurFocusMessageToBackgroundPort(true, false); // Send focus event
+});*/
+
+// Listen for events that can change the applet position
+window.addEventListener("scroll", updateAppletPosition);
+window.addEventListener("resize", updateAppletPosition);
+/*window.addEventListener("mousemove", updateAppletPosition);
+window.addEventListener("mouseup", updateAppletPosition);*/
+
 
