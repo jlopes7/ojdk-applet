@@ -42,12 +42,15 @@ const APPLET_HTML_CONTENT_OPEN = `
  */
 document.addEventListener("DOMContentLoaded", () => {
 	console.info("Looking for Applet entries in the page...");
+	let firstAppletLoaded = false;
 	const applets = document.querySelectorAll("applet");
+
 	applets.forEach((applet) => {
+		console.log("applet", applet);
 		const className = applet.getAttribute("code");
 		const archiveUrl = applet.getAttribute("archive") || "";
 		const codebase = applet.getAttribute("codebase") || "";
-		const appletName = applet.getAttribute("name") || "";
+		const appletName = applet.getAttribute("name") || genRandomAppletName(16);
 		const width = applet.getAttribute("width") || 0;
 		const height = applet.getAttribute("height") || 0;
 		// Construct the full base URL
@@ -91,8 +94,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
 			console.info(`Cookies found: [${cookieStr}]`);
 
-			// Ensure message is sent after fetching cookies
-			sendAppletMessage(cookieStr);
+			if (!firstAppletLoaded) {
+				console.info("First Applet to be loaded:", appletName);
+				// Ensure message is sent after fetching cookies
+				sendAppletMessage(cookieStr);
+			}
+			else {
+				console.info("First applet already loaded, preparing to load the next:", appletName);
+				/// TODO: IMPLEMENT!
+			}
 		});
 
 		/**
@@ -115,10 +125,12 @@ document.addEventListener("DOMContentLoaded", () => {
 				cookies: cookieStr
 			};
 
+			firstAppletLoaded = true;
 			/// We have to wait a bit for the iframe to be rendered
 			setTimeout(() => {
 				if (Object.keys(requestMsg).length > 0) {
 					console.info("About to send the request to backend port", requestMsg);
+
 					/**
 					 * ----------------------
 					 *  OP: LOAD THE APPLET
@@ -134,6 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
 						console.log("Applet Response computed:", resp);
 						if (resp.action === OP_LOAD) {
 							iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded!';
+
 							// TODO: Implement
 						}
 					});
@@ -182,6 +195,21 @@ function sendUnloadMessageToBackgroundPort() {
 	}
 
 	return true;
+}
+
+function genRandomAppletName(size) {
+	const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+	let result = '';
+	let appletPrefix = 'applet_';
+	for (let i = 0; i < size; i++) {
+		const randomIndex = Math.floor(Math.random() * characters.length);
+		result += characters.charAt(randomIndex);
+	}
+
+	result = appletPrefix + result;
+	console.info("Applet generated name:", result);
+
+	return result;
 }
 
 /**
