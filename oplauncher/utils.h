@@ -20,11 +20,11 @@
 #   define MAXARRAYSIZE	BUFFER_SIZE /*4KB arrays only*/
 #endif
 
-#if !defined (WIN32)
+/*#if !defined (WIN32)
 #   ifndef BOOL
 #       define BOOL unsigned short
 #   endif
-#endif
+#endif*/
 
 #ifndef TRUE
 #define TRUE	1
@@ -32,9 +32,9 @@
 #ifndef FALSE
 #define FALSE	0
 #endif
-#ifndef BOOL
+/*#ifndef BOOL
 #define BOOL	int
-#endif
+#endif*/
 
 #ifndef ST_YES
 #define ST_YES	    "yes"

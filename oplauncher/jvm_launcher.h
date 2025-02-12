@@ -13,7 +13,7 @@
 
 #define JVM_CP_FOLDERNAME                   "libs"
 
-#define CL_APPLET_CLASSLOADER	            "org/oplauncher/AppletClassLoader"
+#define CL_APPLET_CLASSLOADER	            "org/oplauncher/OPLauncherController"
 #define CL_APPLET_CLASSLOADER_METHOD        "processLoadAppletOp"
 #define CL_APPLET_C2A_METHOD                "processAppletC2A"
 #define CL_APPLET_CLASSLOADER_PARAMTYPES    "(Ljava/util/List;)Ljava/lang/String;"
