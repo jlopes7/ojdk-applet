@@ -8,7 +8,7 @@ import java.util.Arrays;
 import static org.testng.Assert.*;
 
 public class AppletClassLoaderTest {
-    AppletClassLoader _appletClassLoader = new AppletClassLoader();
+    AppletClassLoader _appletClassLoader = new AppletClassLoader(null);
 
     @BeforeTest
     public void setUp() throws Exception {

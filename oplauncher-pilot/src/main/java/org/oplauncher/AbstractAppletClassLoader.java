@@ -30,10 +30,10 @@ import java.util.stream.Collectors;
 public abstract class AbstractAppletClassLoader<T> extends ClassLoader implements IAppletClassLoader<T> {
     static private final Lock LOCK = new ReentrantLock();
     static private final Logger LOGGER = LogManager.getLogger(AbstractAppletClassLoader.class);
-    static {
+    /*static {
         ///  Logger initialization
         ConfigurationHelper.intializeLog();
-    }
+    }*/
 
     protected AbstractAppletClassLoader(ClassLoader parent) {
         super(parent);
@@ -98,7 +98,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
             ///  Load all applet parameters and save it to the base classloader to be access by the Applet Context
             ///  initialization at a later time
-            _appletParameters = CommunicationParameterParser.resolveAppletParameters(parameters);
+            _appletParameters = CommunicationParameterParser.resolveAppletParameters(appletName, parameters);
 
             // Load all the deps archives (JARS)
             for (String archive : archives) {

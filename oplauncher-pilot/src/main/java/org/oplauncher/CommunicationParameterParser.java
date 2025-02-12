@@ -1,6 +1,8 @@
 package org.oplauncher;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
@@ -8,6 +10,8 @@ import static java.util.regex.Pattern.quote;
 import static org.oplauncher.IConstants.*;
 
 public class CommunicationParameterParser {
+    static private final Logger LOGGER = LogManager.getLogger(CommunicationParameterParser.class);
+
     private static final int IDX_OPCODE         = 0x00;
     private static final int IDX_BASEURL        = 0x01;
     private static final int IDX_APPLTTAG       = 0x02;
@@ -84,12 +88,15 @@ public class CommunicationParameterParser {
         return archives;
     }
 
-    static public <T>AppletParameters resolveAppletParameters(List<T> params) {
+    static public <T>AppletParameters resolveAppletParameters(String appletName, List<T> params) {
         String val;
         if ( params!=null && (val = paramValue(params, IDX_APPLTPARAMS)) != null ) {
             String opcode = resolveOpCode(params);
             if (val != null && OpCode.parse(opcode) == OpCode.LOAD_APPLET) {
-                return AppletParameters.getInstance(val);
+                if (LOGGER.isInfoEnabled()) {
+                    LOGGER.info("Loading Applet({}) Parameters: {}", appletName, params);
+                }
+                return AppletParameters.getInstance(appletName, val);
             }
             else if (val != null) {
                 throw new RuntimeException(String.format("Incorrect operation provided: %s. Expected op: load_applet", opcode));

@@ -4,8 +4,7 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.oplauncher.ConfigurationHelper;
-import org.oplauncher.OPLauncherException;
+import org.oplauncher.*;
 import org.oplauncher.op.OPMessage;
 import org.oplauncher.op.OPPayload;
 
@@ -14,6 +13,7 @@ import java.util.Date;
 
 import static org.oplauncher.ErrorCode.APPTKN_AUTH_ERROR;
 import static org.oplauncher.ErrorCode.EMPTY_JSON_PAYLOAD;
+import static org.oplauncher.OpCode.LOAD_APPLET;
 
 public class AppletOPDispatcher {
     static private final Logger LOGGER = LogManager.getLogger(AppletOPDispatcher.class);
@@ -54,7 +54,7 @@ public class AppletOPDispatcher {
                     getAppletController()
                             .getAppletClassLoader()
                             .getAppletParameters()
-                            .setPosition(posx, posy);
+                            .setPosition(getAppletName(), posx, posy);
                 }
                 else {
                     LOGGER.warn("Cannot change Applet position because one of its Axis was not provided");
@@ -76,9 +76,21 @@ public class AppletOPDispatcher {
                 }
                 LOGGER.info("Processing Applet OP [{}]", payload.getOpCode().opcode());
 
-                prepareExecutionIfNecessary(payload)
-                        .getAppletController()
-                        .executeOP(payload.getOpCode(), payload.getParameters().toArray(new String[0]));
+                /*
+                 * We need to switch between the OP_LOAD op, and all other OPs, OP_LOAD requires special attention
+                 * because it needs to reinitialize the applet loader
+                 */
+                if ( payload.getOpCode() != LOAD_APPLET ) {
+                    prepareExecutionIfNecessary(payload)
+                            .getAppletController()
+                            .executeOP(payload.getOpCode(), payload.getParameters().toArray(new String[0]));
+                }
+                else {
+                    OPLauncherController controller = OPLauncherDispatcherPool.getActiveControllerInstance();
+                    LOGGER.info("Processing new Load Applet OP [{}]", payload.getOpCode().opcode());
+                    // Triggers the execution of the new Applet
+                    controller.processLoadAppletOp(payload.getParameters());
+                }
             }
             else {
                 throw new OPLauncherException("The OP message could be verified: "+message.getPayload().getToken(), APPTKN_AUTH_ERROR);
@@ -99,6 +111,10 @@ public class AppletOPDispatcher {
         else {
             throw new OPLauncherException("Invalid payload. Empty payload.", EMPTY_JSON_PAYLOAD);
         }
+    }
+
+    public String getAppletName() {
+        return getAppletController().getAppletClassLoader().getInstanceName();
     }
 
     public AppletController getAppletController() {

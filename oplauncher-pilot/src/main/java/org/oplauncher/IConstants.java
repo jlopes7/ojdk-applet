@@ -2,6 +2,9 @@ package org.oplauncher;
 
 public interface IConstants {
     static public final Object NULLPTR = null;
+    static public final String EMPTY_STRING = "";
+
+    static public final String DEFAULT_OPLAUNCHER_POOLNAME = "default-oplauncher-pool";
 
     static public final int NO_PROP_CODE = 0;
     static public final int EXIT_SUCCESS = 0;
@@ -13,6 +16,7 @@ public interface IConstants {
     static public final String OFF_VALUE = "off";
 
     static public final String SUCCESS_RESPONSE = "Success";
+    static public final String FAILURE_RESPONSE = "Failure";
     static public final String OP_PARAM_LOW_VISIBILITY = "low_visibility";
 
     static public final int DEFAULT_INIT_POSX = 50;

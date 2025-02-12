@@ -5,7 +5,6 @@ import org.apache.logging.log4j.Logger;
 import org.oplauncher.AppletClassLoader;
 import org.oplauncher.ErrorCode;
 import org.oplauncher.OPLauncherException;
-import org.oplauncher.op.OPServerFactory;
 
 import java.applet.Applet;
 import java.applet.AppletContext;
@@ -18,7 +17,7 @@ import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
 
 public class DefaultAppletController extends AppletController {
     static private final Lock LOCK = new ReentrantLock();
-    static private Logger LOGGER = LogManager.getLogger(DefaultAppletController.class);
+    static private final Logger LOGGER = LogManager.getLogger(DefaultAppletController.class);
 
     protected DefaultAppletController(AppletClassLoader clzloader, AppletContext context) throws OPLauncherException {
         super(clzloader, context);
@@ -45,8 +44,8 @@ public class DefaultAppletController extends AppletController {
             }
             applet.setStub(new CustomAppletStub(this));
 
-            Dimension appletDim = new Dimension(getAppletClassLoader().getAppletParameters().getWidth(),
-                                                getAppletClassLoader().getAppletParameters().getHeight());
+            Dimension appletDim = new Dimension(getAppletClassLoader().getAppletParameters().getWidth(getAppletClassLoader().getAppletName()),
+                                                getAppletClassLoader().getAppletParameters().getHeight(getAppletClassLoader().getAppletName()));
             applet.setSize(appletDim);
             applet.setPreferredSize(appletDim);
 
@@ -74,8 +73,8 @@ public class DefaultAppletController extends AppletController {
     protected String changeAppletPosition() throws OPLauncherException {
         LOCK.lock();
         try {
-            move(getAppletClassLoader().getAppletParameters().getPositionX(),
-                 getAppletClassLoader().getAppletParameters().getPositionY());
+            move(getAppletClassLoader().getAppletParameters().getPositionX(getAppletClassLoader().getAppletName()),
+                 getAppletClassLoader().getAppletParameters().getPositionY(getAppletClassLoader().getAppletName()));
 
             return SUCCESS_RESPONSE;
         }

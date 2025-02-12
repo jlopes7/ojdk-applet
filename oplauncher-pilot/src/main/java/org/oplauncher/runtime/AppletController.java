@@ -118,7 +118,8 @@ public abstract class AppletController {
             getAppletFrame().setIconImage(frameIcon.getImage());
 
             getAppletFrame().setLayout(new BorderLayout(5, 5));
-            getAppletFrame().setSize(getAppletClassLoader().getAppletParameters().getWidth(), getAppletClassLoader().getAppletParameters().getHeight());
+            getAppletFrame().setSize(getAppletClassLoader().getAppletParameters().getWidth(applet.getName()),
+                                     getAppletClassLoader().getAppletParameters().getHeight(applet.getName()));
             getAppletFrame().setBackground(Color.white);
             getAppletFrame().setAlwaysOnTop(ConfigurationHelper.isFrameAlwaysOnTop());
             getAppletFrame().setResizable(ConfigurationHelper.isFrameResizable());
@@ -186,8 +187,11 @@ public abstract class AppletController {
     }
 
     public AppletController setAppletPosition() {
-        if ( getAppletClassLoader().getAppletParameters().getPositionX() >= 0 || getAppletClassLoader().getAppletParameters().getPositionY() >= 0 ) {
-            getAppletFrame().setLocation(getAppletClassLoader().getAppletParameters().getPositionX(), getAppletClassLoader().getAppletParameters().getPositionY());
+        String appletName = getAppletClassLoader().getAppletName();
+        if ( getAppletClassLoader().getAppletParameters().getPositionX(appletName) >= 0 ||
+                getAppletClassLoader().getAppletParameters().getPositionY(appletName) >= 0 ) {
+            getAppletFrame().setLocation(getAppletClassLoader().getAppletParameters().getPositionX(appletName),
+                                         getAppletClassLoader().getAppletParameters().getPositionY(appletName));
         }
         // Simply center the applet!
         else {
@@ -231,7 +235,7 @@ public abstract class AppletController {
                     LOGGER.info("About to move the applet ({}) to the position X:{} to Y:{}", getApplet().getName(), x, y);
                 }
 
-                getAppletClassLoader().getAppletParameters().setPosition(x, y);
+                getAppletClassLoader().getAppletParameters().setPosition(getAppletClassLoader().getAppletName(), x, y);
 
                 // Reset position if it moves off-screen
                 Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();

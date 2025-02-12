@@ -3,7 +3,6 @@ package org.oplauncher.runtime;
 import java.applet.AppletContext;
 import java.applet.AppletStub;
 import java.net.URL;
-import java.util.Map;
 
 public class CustomAppletStub implements AppletStub {
 
@@ -28,7 +27,9 @@ public class CustomAppletStub implements AppletStub {
 
     @Override
     public String getParameter(String name) {
-        return _controller.getAppletClassLoader().getAppletParameters().getCustomParameter(name);
+        return _controller.getAppletClassLoader()
+                .getAppletParameters()
+                .getCustomParameter(_controller.getAppletClassLoader().getInstanceName(), name);
     }
 
     @Override

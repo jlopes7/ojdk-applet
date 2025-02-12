@@ -19,8 +19,11 @@ import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
 public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     static private final Logger LOGGER = LogManager.getLogger(AppletClassLoader.class);
 
-    public AppletClassLoader() {
+    public AppletClassLoader(OPLauncherDispatcher dispatcherRef) {
         super(AppletClassLoader.getSystemClassLoader());
+
+        // Saves the applet reference
+        _dispatcherRef = dispatcherRef;
 
         // Trigger the splash
         SplashScreen.instance.showSplash();
@@ -32,6 +35,9 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
     @Override
     public String processLoadAppletOp(List<String> parameters) throws OPLauncherException {
         try {
+            // Step 0: Name this loader instance with the Applet name
+            _instanceName = CommunicationParameterParser.resolveAppletName(parameters);
+
             // Step 1: Load the applet source code and cache it (if enabled)
             List<FileResource> loadedResources = loadAppletFromURL(parameters);
 
@@ -93,7 +99,7 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
 
     static public void main(String[] args) {
         try {
-            AppletClassLoader appletClassLoader = new AppletClassLoader();
+            AppletClassLoader appletClassLoader = new AppletClassLoader(null);
             /*appletClassLoader.processLoadAppletOp(Arrays.asList("load_applet",
                     "https://www.cs.fsu.edu/~jtbauer/cis3931/tutorial/applet/overview",
                     "codebase=example",
@@ -155,6 +161,16 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
         return _appletController;
     }
 
+    public OPLauncherDispatcher getOPLauncherDispatcher() {
+        return _dispatcherRef;
+    }
+
+    public String getInstanceName() {
+        return _instanceName;
+    }
+
     // class properties
     private AppletController _appletController;
+    private OPLauncherDispatcher _dispatcherRef;
+    private String _instanceName;
 }
