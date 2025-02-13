@@ -93,6 +93,10 @@ public abstract class AppletController {
             else if ( !getJavaConsole().isConsoleVisible() ) {
                 getJavaConsole().display(DEFAULT_INIT_POSX, DEFAULT_INIT_POSY);
             }
+            else {
+                String appletName = getJavaConsole().getAppletController().getAppletClassLoader().getAppletName();
+                LOGGER.warn("The Java Console was already triggered by: {}. No additional console will be triggered for: {}", appletName, getAppletClassLoader().getAppletName());
+            }
 
             return this;
         }

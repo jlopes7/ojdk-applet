@@ -26,6 +26,7 @@ public interface IConstants {
     static public final int DEFAULT_CONNECTION_SETSOTIMEOUT_SEC = 5000;
 
     static public final String DEFAULT_OPSERVER_CTXROOT = "oplauncher-op";
+    static public final String DEFAULT_HB_CTXROOT = "oplauncher-hb";
     static public final String HTTP_HEADER_CHROMEEXT_TKN = "X-Chrome-Extension-Tkn";
 
     static public final String CONFIG_FILENAME = "config.properties";

@@ -2,12 +2,14 @@ package org.oplauncher;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.res.HttpSessionResourceRequest;
 import org.oplauncher.res.ResourceRequestFactory;
 
+import static org.oplauncher.CommunicationParameterParser.IDX_RESURL;
 import static org.oplauncher.res.ResourceType.*;
 
 import java.io.ByteArrayInputStream;
@@ -40,6 +42,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
         _fileMap = new LinkedHashMap<>();
         _loadedClassMap = new LinkedHashMap<>();
+        _currentParameters = new ArrayList<>();
     }
 
     @Override
@@ -87,6 +90,9 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
 
             List<FileResource> resources = new ArrayList<>();
 
+            // Save the currently used parameters... may have to load additional classes..., ugly, but functional!
+            saveCurrentUsedParameters(parameters);
+
             CommunicationParameterParser.AppletTagDef applTagDef = CommunicationParameterParser.resolveAppletTagDef(parameters);
             String loadSourceBaseURLPath = CommunicationParameterParser.resolveBaseUrl(parameters);
             String loadResApplType = CommunicationParameterParser.resolveAppletTag(parameters, applTagDef);
@@ -127,6 +133,15 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
             LOCK.unlock();
         }
     }
+    protected FileResource loadAppletFromURL(URL loadSourceBaseURL, HttpSessionResourceRequest session, Map<String,String> cookies) {
+        FileResource res = session.verifyCache(loadSourceBaseURL);
+        if (res == null) {
+            res = session.getResource(loadSourceBaseURL, cookies);
+        }
+
+        return res;
+    }
+
     private FileResource _loadAppletFromURL(CommunicationParameterParser.AppletTagDef applTagDef,
                                                   String appletName,
                                                   String loadSourceBaseURLPath,
@@ -161,10 +176,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
             }
 
             /// TODO: Missing the implementation of the JARs Applet parameter to download multiple jar deps
-            FileResource res = session.verifyCache(loadSourceBaseURL);
-            if (res == null) {
-                res = session.getResource(loadSourceBaseURL, cookies);
-            }
+            FileResource res = loadAppletFromURL(loadSourceBaseURL, session, cookies);
 
             if (res != null) {
                 // Add the loaded file to the control map
@@ -192,7 +204,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                 try {
                     ArchiveClassLoaderType type = ConfigurationHelper.getArchiveClassLoaderType();
                     FileResource res = getResourceByName(name);
-                    Class<?> klass;
+                    Class<?> klass = null;
 
                     if (res != null && res.getResourceType() == FileResource.ResourceType.CLASS_FILE) {
                         type = ArchiveClassLoaderType.SIMPLE;
@@ -204,7 +216,28 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                             klass = defineClass(name, klassBytes, 0, klassBytes.length);
                             break;
                         case URL:
-                            klass = getURLClassLoader(name).loadClass(name);
+                            ClassLoader cl = getURLClassLoader(name);
+                            if (cl != null) {
+                                klass = cl.loadClass(name);
+                            }
+                            else {
+                                LOGGER.warn("Could not find class [{}] using the conventinal ClassLoader, trying to search in the system loader", name);
+                                try {
+                                    klass = super.findClass(name);
+                                }
+                                catch (ClassNotFoundException cnfe) {
+                                    LOGGER.warn("Could not find class [{}] using the system ClassLoader", name, cnfe);
+                                    LOGGER.warn("Trying to load the class from the remote URL");
+
+                                    //if (!name.endsWith(".class")) name = name.concat(".class");
+
+                                    setCurrentParameterValue(IDX_RESURL, (T) name);
+                                    List<FileResource> resources = loadAppletFromURL(getCurrentlyUsedParameters());
+                                    for (FileResource resource : resources) {
+                                        klass = this.findClass(name);
+                                    }
+                                }
+                            }
                             break;
                         default: {
                             throw new RuntimeException(String.format("Could not load class with the class loader type [%s]. Class: %s", type.name(), name));
@@ -314,7 +347,14 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
     protected URLClassLoader getURLClassLoader(final String name) {
         if (_urlClassLoader == null) {
             try {
-                _urlClassLoader = new URLClassLoader(new URL[]{getResourceByName(name).getUnmaskedFile().toURI().toURL()}, this);
+                FileResource res = getResourceByName(name);
+                if (res != null) {
+                    _urlClassLoader = new URLClassLoader(new URL[]{res.getUnmaskedFile().toURI().toURL()}, this);
+                }
+                else {
+                    LOGGER.warn("Could not find a class resource associated with the given the name: {}", name);
+                    return null;
+                }
             }
             catch (MalformedURLException mex) {
                 throw new OPLauncherException(mex, ErrorCode.MALFORMED_URL);
@@ -415,10 +455,45 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                 }
             }
 
+            if (LOGGER.isDebugEnabled() && res != null) {
+                LOGGER.debug("(getFileResource) Found resource: {}", klassName);
+                LOGGER.debug("(getFileResource) Temp resource path: {}", res.getTempClassPath().getPath());
+                LOGGER.debug("(getFileResource) Temp file masked path: {}", res.getMaskedFile().getAbsolutePath());
+            }
+
             return res;
         }
         finally {
             LOCK.unlock();
+        }
+    }
+
+    protected List<T> getCurrentlyUsedParameters() {
+        return _currentParameters;
+    }
+    protected List<T> saveCurrentUsedParameters(List<T> param) {
+        if ( param != null ) {
+            if ( param.size() == getCurrentlyUsedParameters().size() ) {
+                for (int i = 0; i < param.size(); i++) {
+                    T givenParam = param.get(i);
+                    T savedParam = getCurrentlyUsedParameters().get(i);
+
+                    if (!givenParam.equals(savedParam)) {
+                        getCurrentlyUsedParameters().set(i, givenParam);
+                    }
+                }
+            }
+            else {
+                getCurrentlyUsedParameters().clear();
+                getCurrentlyUsedParameters().addAll(param);
+            }
+        }
+
+        return param;
+    }
+    private void setCurrentParameterValue(int codeIndex, T value) {
+        if (codeIndex < _currentParameters.size()) {
+            _currentParameters.set(codeIndex, value);
         }
     }
 
@@ -440,4 +515,6 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
     private String _appletName;
 
     private URLClassLoader _urlClassLoader;
+
+    private List<T> _currentParameters;
 }

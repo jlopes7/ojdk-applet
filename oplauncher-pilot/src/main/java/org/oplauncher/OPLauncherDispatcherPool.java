@@ -4,7 +4,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -26,7 +25,7 @@ public class OPLauncherDispatcherPool {
         _poolService = Executors.newSingleThreadScheduledExecutor();
 
         // triggers the pooling stats mechanism
-        _poolService.scheduleAtFixedRate(this::poolStatistics, 0, 15, TimeUnit.MINUTES);
+        _poolService.scheduleAtFixedRate(this::poolStatistics, 1, 15, TimeUnit.MINUTES);
     }
 
     public void poolStatistics() {

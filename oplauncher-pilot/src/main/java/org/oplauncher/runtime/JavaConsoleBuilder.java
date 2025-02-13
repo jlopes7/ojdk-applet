@@ -7,7 +7,6 @@ import org.oplauncher.OPLauncherException;
 
 import javax.swing.*;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 

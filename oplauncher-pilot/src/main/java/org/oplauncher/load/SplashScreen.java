@@ -9,7 +9,7 @@ import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -18,6 +18,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SplashScreen extends JWindow {
     static public final SplashScreen instance = new SplashScreen();
+    private final AtomicReference<ScheduledExecutorService> EXECUTOR_SERVICE = new AtomicReference<>(Executors.newSingleThreadScheduledExecutor());
 
     static private final Lock LOCK = new ReentrantLock();
     static private final Logger LOGGER = LogManager.getLogger(SplashScreen.class);
@@ -36,7 +37,6 @@ public class SplashScreen extends JWindow {
                                             .getScaledInstance(WSIZE, HSIZE, Image.SCALE_SMOOTH);
         _imageLabel = new JLabel(new ImageIcon(splash));
         _statusLabel = new JLabel("Loading.", SwingConstants.LEFT);
-        _executorService = Executors.newSingleThreadScheduledExecutor();
 
         additionUIConfig();
 
@@ -76,13 +76,15 @@ public class SplashScreen extends JWindow {
         }
     }
     public SplashScreen closeSplash() {
+        ScheduledExecutorService executor = getExecutorService();
+
         LOCK.lock();
         try {
             LOGGER.info("Closing the splash screen...");
             // Stop the scheduled updates
-            getExecutorService().shutdown();
+            executor.shutdown();
             try {
-                while (!getExecutorService().awaitTermination(2l, SECONDS)) ;
+                while (!executor.awaitTermination(2l, SECONDS)) ;
             }
             catch (InterruptedException e) {
                 LOGGER.warn("Interrupted while waiting for the splash screen to close.", e);
@@ -124,13 +126,17 @@ public class SplashScreen extends JWindow {
         return _statusLabel;
     }
     protected ScheduledExecutorService getExecutorService() {
-        return _executorService;
+        ScheduledExecutorService executorService = EXECUTOR_SERVICE.get();
+        if (executorService == null || executorService.isShutdown()) {
+            EXECUTOR_SERVICE.set(Executors.newSingleThreadScheduledExecutor());
+        }
+
+        return EXECUTOR_SERVICE.get();
     }
 
     // class properties
     private JLabel _imageLabel;
     private JLabel _statusLabel;
 
-    private ScheduledExecutorService _executorService;
     private int _dotCount = 1;
 }

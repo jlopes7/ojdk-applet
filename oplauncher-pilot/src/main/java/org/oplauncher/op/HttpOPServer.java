@@ -19,8 +19,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.oplauncher.ErrorCode.ERROR_LISTENING_OPSERVER;
-import static org.oplauncher.IConstants.DEFAULT_CONNECTION_BACKLOG;
-import static org.oplauncher.IConstants.DEFAULT_CONNECTION_SETSOTIMEOUT_SEC;
+import static org.oplauncher.IConstants.*;
 
 public class HttpOPServer extends OPServer {
     static private final Lock LOCK = new ReentrantLock();
@@ -38,7 +37,9 @@ public class HttpOPServer extends OPServer {
         LOCK.lock();
         try {
             String ctxroot = String.format("/%s", ConfigurationHelper.getOPServerContextRoot());
+            String hbroot = String.format("/%s", DEFAULT_HB_CTXROOT);
             LOGGER.info("About to start the OP server listening on {} => {}:{}", ctxroot, getHost(), getPort());
+            LOGGER.info("About to start the OP server listening on {} => {}:{}", hbroot, getHost(), getPort());
 
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("-> Socket SoTimeout: {} mills", DEFAULT_CONNECTION_SETSOTIMEOUT_SEC);
@@ -58,6 +59,7 @@ public class HttpOPServer extends OPServer {
                         .setListenerPort(getPort())
                         .setLocalAddress(InetAddress.getByName(getHost()))
                         .registerHandler(ctxroot, new OPHttpHandler(this))
+                        .registerHandler(hbroot, new OPHttpHBHandler(this))
                         .setIOReactorConfig(reactorConfig)
                     .create();
             // Start the server

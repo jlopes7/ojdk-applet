@@ -42,7 +42,13 @@ public class OPLauncherController {
         /*controller.processLoadAppletOp(Arrays.asList("load_applet",
                 "https://javatester.org",
                 "",
-                "", "Java Tester Applet",
+                "", "Java Tester Applet 1",
+                "width=440;height=60;posx=1530;posy=420",
+                "JavaVersionDisplayApplet.class"));
+        controller.processLoadAppletOp(Arrays.asList("load_applet",
+                "https://javatester.org",
+                "",
+                "", "Java Tester Applet 2",
                 "width=440;height=60;posx=1530;posy=420",
                 "JavaVersionDisplayApplet.class"));*/
         controller.processLoadAppletOp(Arrays.asList("load_applet",

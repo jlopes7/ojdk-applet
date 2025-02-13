@@ -12,13 +12,13 @@ import static org.oplauncher.IConstants.*;
 public class CommunicationParameterParser {
     static private final Logger LOGGER = LogManager.getLogger(CommunicationParameterParser.class);
 
-    private static final int IDX_OPCODE         = 0x00;
-    private static final int IDX_BASEURL        = 0x01;
-    private static final int IDX_APPLTTAG       = 0x02;
-    private static final int IDX_APPLTJARS      = 0x03;
-    private static final int IDX_APPLTNAME      = 0x04;
-    private static final int IDX_APPLTPARAMS    = 0x05;
-    private static final int IDX_RESURL         = 0x06;
+    public static final int IDX_OPCODE         = 0x00;
+    public static final int IDX_BASEURL        = 0x01;
+    public static final int IDX_APPLTTAG       = 0x02;
+    public static final int IDX_APPLTJARS      = 0x03;
+    public static final int IDX_APPLTNAME      = 0x04;
+    public static final int IDX_APPLTPARAMS    = 0x05;
+    public static final int IDX_RESURL         = 0x06;
 
     public enum AppletTagDef {
         CODEBASE, ARCHIVES, UNKNOWN
@@ -86,6 +86,12 @@ public class CommunicationParameterParser {
         }
 
         return archives;
+    }
+
+    static protected final <T>void set(int parameterCode, T value, List<T> params) {
+        if ( params!=null && params.size() > parameterCode ) {
+            params.set(parameterCode, value);
+        }
     }
 
     static public <T>AppletParameters resolveAppletParameters(String appletName, List<T> params) {
