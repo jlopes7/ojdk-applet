@@ -17,6 +17,15 @@ const SELECTED_BACKEND_TP = JSON_BACKEND;
 
 const DEFAULT_APP_TOKEN = "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT";
 
+const PIPE_STDOUT = "pip_stdout";
+const PIPE_REST = "pip_rest";
+
+const ALARM_SERVER_HB = "hbCheck"
+const HB_CTXROOT = "oplauncher-hb"
+
+// Control flag to activate or de-activate the message sent to the background
+let BackendControlReady = false
+
 if (DEBUG) {
     /**
      * Testing...
@@ -53,79 +62,95 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     else if (message.op === OP_LOAD) {
+        console.info("About to load the OJDK Applet Launcher for the applet:", message.appletName);
+
         /*
-         * Option 1: Loads the Applet base code and sends its bits as B64 across the wire
-         * -> May be a valid option for the future, but for now is deactivated
+         * Option 0: Selects the correct Pipe!
          */
-        if ( FETCH_REMOTEAPPLET ) {
-            console.info("Option 1 (fetch remote on Chrome Extension) was selected");
+        if ( message.firstload || message.pipecfn === PIPE_STDOUT) {
+            /*
+             * Option 1: Loads the Applet base code and sends its bits as B64 across the wire
+             * -> May be a valid option for the future, but for now is deactivated
+             */
+            if (FETCH_REMOTEAPPLET) {
+                console.info("Option 1 (fetch remote on Chrome Extension) was selected");
 
-            // Extract the applet details from the message
-            const { archiveUrl, codeUrl } = message;
+                // Extract the applet details from the message
+                const {archiveUrl, codeUrl} = message;
 
-            // Determine which file to download: JAR file or class file
-            let downloadUrl = null;
-            if (archiveUrl) {
-                // We have a JAR file to download
-                downloadUrl = archiveUrl;
-            } else if (codeUrl) {
-                // We have a .class file to download
-                downloadUrl = codeUrl;
-            } else {
-                console.error("No archive or code URL provided for applet.");
-                // TODO: Show the message in the browser
-                return;
-            }
+                // Determine which file to download: JAR file or class file
+                let downloadUrl = null;
+                if (archiveUrl) {
+                    // We have a JAR file to download
+                    downloadUrl = archiveUrl;
+                } else if (codeUrl) {
+                    // We have a .class file to download
+                    downloadUrl = codeUrl;
+                } else {
+                    console.error("No archive or code URL provided for applet.");
+                    // TODO: Show the message in the browser
+                    return;
+                }
 
-            console.info("About to download the Applet codebase: ", downloadUrl)
-            // Extract the filename from the URL (either JAR or class)
-            //const urlParts = downloadUrl.split('/');
-            //const filename = urlParts[urlParts.length - 1]
+                console.info("About to download the Applet codebase: ", downloadUrl)
+                // Extract the filename from the URL (either JAR or class)
+                //const urlParts = downloadUrl.split('/');
+                //const filename = urlParts[urlParts.length - 1]
 
-            // Fetch the file (either .jar or .class) with cookies to maintain session
-            fetch(message.archiveUrl || message.codebase)
-                .then(response => response.blob())
-                .then(blob => {
-                    return blob.arrayBuffer(); // Convert the Blob to ArrayBuffer
-                })
-                .then(arrayBuffer => {
-                    // Convert ArrayBuffer to Base64 (optional step to make it more message-friendly)
-                    const base64Data = arrayBufferToBase64(arrayBuffer);
+                // Fetch the file (either .jar or .class) with cookies to maintain session
+                fetch(message.archiveUrl || message.codebase)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        return blob.arrayBuffer(); // Convert the Blob to ArrayBuffer
+                    })
+                    .then(arrayBuffer => {
+                        // Convert ArrayBuffer to Base64 (optional step to make it more message-friendly)
+                        const base64Data = arrayBufferToBase64(arrayBuffer);
 
-                    // Create the message to be sent to native host, including applet details and file content
-                    const messageToNative = {
-                        ...message.data,
-                        fileType: message.archiveUrl ? "jar" : "class",
-                        fileContent: base64Data // Pass the file content in Base64 format
-                    };
+                        // Create the message to be sent to native host, including applet details and file content
+                        const messageToNative = {
+                            ...message.data,
+                            fileType: message.archiveUrl ? "jar" : "class",
+                            fileContent: base64Data // Pass the file content in Base64 format
+                        };
 
-                    send2OPLauncher(messageToNative, (resp, port) => {
-                        if (sender && sender.tab && sender.tab.id) {
-                            // Send response back to the content script
-                            chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
-                        }
-                        else {
-                            console.warn("Sender tab ID is missing. Cannot send message back.");
-                        }
+                        send2OPLauncher(messageToNative, (resp, port) => {
+                            if (sender && sender.tab && sender.tab.id) {
+                                // Send response back to the content script
+                                chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                            } else {
+                                console.warn("Sender tab ID is missing. Cannot send message back.");
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Failed to fetch or process the file:", error);
                     });
-                })
-                .catch(error => {
-                    console.error("Failed to fetch or process the file:", error);
-                });
-        }
-        /*
-         * Option 2: The applet sourcebase will be dealt by the OPLauncher Pilot
-         * -> This is the option that is currently Active!
-         */
-        else {
-            console.info("Option 2 (Applet bits is resolved by OPLauncher) was selected");
+            }
+            /*
+             * Option 2: The applet sourcebase will be dealt by the OPLauncher Pilot
+             * -> This is the option that is currently Active!
+             */
+            else {
+                console.info("Option 2 (Applet bits is resolved by OPLauncher) was selected");
 
-            send2OPLauncher(message, (resp, port) => {
-                let obj = { action: OP_LOAD, response: resp };
-                console.info("Got a response back from the native host", resp)
-                console.info("Sending the response back to the UI", obj);
-                sendResponse ( obj );
+                send2OPLauncher(message, (resp, port) => {
+                    let obj = {action: OP_LOAD, response: resp};
+                    console.info("Got a response back from the native host", resp)
+                    console.info("Sending the response back to the UI", obj);
+                    sendResponse(obj);
+                });
+            }
+        }
+        else if ( message.pipecfn === PIPE_REST ) {
+            console.info("Loading the applet using a REST OP:", message.appletName);
+            send2OPLauncherJSONPort(message, (resp, port) => {
+                console.info("Got a response back from the 'unload' OP from the OPLauncher", resp);
+                sendResponse ( resp );
             });
+        }
+        else {
+            console.error("Incorrect PIPE configuration [%s]. No changes were applied to the system", message.pipecfn);
         }
     }
     else if (message.op === OP_UNLOAD) {
@@ -271,3 +296,45 @@ function arrayBufferToBase64(buffer) {
     }
     return btoa(binary);
 }
+
+/**
+ * Checks to see if the backend server is active or not
+ */
+function checkBackendStatus() {
+    if (BackendControlReady) return; // Skip check if already ready
+
+    chrome.storage.local.get(["httpPort", "hostURL", "personalToken"], function (config) {
+        const host = config.hostURL || "127.0.0.1";
+        const port = config.httpPort || 7777;
+        const token = config.personalToken || DEFAULT_APP_TOKEN;
+        const backendURL = `http://${host}:${port}/${HB_CTXROOT}`;
+
+        console.info("HB status check on:", backendURL);
+
+        fetch(backendURL, { method: "GET" })
+        .then(response => {
+            if (response.ok) {
+                console.info("OPLauncher backend server is now available.");
+                BackendControlReady = true;
+                chrome.alarms.clear(ALARM_SERVER_HB); // Stop checking once backend is ready
+            }
+            else {
+                console.warn("Wrong response from the backend, not ready:", response.status);
+            }
+        })
+        .catch(error => {
+            console.warn("Backend server no ready yet:", error);
+        });
+    });
+}
+
+/**
+ * Creates a Alarm check to see if OPLauncher REST server is active yet or not
+ */
+chrome.alarms.onAlarm.addListener((alarm) => {
+    console.debug("Received an alarm", alarm);
+    if (alarm.name === ALARM_SERVER_HB) {
+        checkBackendStatus();
+    }
+});
+chrome.alarms.create(ALARM_SERVER_HB, { periodInMinutes: 1 });

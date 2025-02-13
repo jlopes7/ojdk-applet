@@ -7,6 +7,10 @@ const OP_MOVE    = "move_applet";
 
 const LOW_VISIBILITY_ST = "low_visibility";
 
+const PIPE_STDOUT = "pip_stdout";
+const PIPE_REST = "pip_rest";
+const PREFERED_PIPE = PIPE_REST;
+
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 
 const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
@@ -42,7 +46,7 @@ const APPLET_HTML_CONTENT_OPEN = `
  */
 document.addEventListener("DOMContentLoaded", () => {
 	console.info("Looking for Applet entries in the page...");
-	let firstAppletLoaded = false;
+	let firstAppletLoaded = true;
 	const applets = document.querySelectorAll("applet");
 
 	applets.forEach((applet) => {
@@ -94,21 +98,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
 			console.info(`Cookies found: [${cookieStr}]`);
 
-			if (!firstAppletLoaded) {
-				console.info("First Applet to be loaded:", appletName);
-				// Ensure message is sent after fetching cookies
-				sendAppletMessage(cookieStr);
-			}
-			else {
-				console.info("First applet already loaded, preparing to load the next:", appletName);
-				/// TODO: IMPLEMENT!
-			}
+			if (firstAppletLoaded) console.info("First Applet to be loaded:", appletName);
+			else console.info("First applet already loaded, preparing to load the next:", appletName);
+
+			// Ensure message is sent after fetching cookies
+			sendAppletMessage(cookieStr, firstAppletLoaded);
 		});
 
 		/**
 		 * Send the applet message
 		 */
-		function sendAppletMessage(cookieStr) {
+		function sendAppletMessage(cookieStr, executionTriage) {
 			const position = getAbsoluteScreenPosition(iframe);
 			const requestMsg = {
 				op: OP_LOAD,
@@ -122,10 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
 				posx: position.x,
 				posy: position.y,
 				parameters: parametersStr,
-				cookies: cookieStr
+				cookies: cookieStr,
+				pipecfn: PREFERED_PIPE,
+				firstload: executionTriage
 			};
 
-			firstAppletLoaded = true;
+			firstAppletLoaded = false;
 			/// We have to wait a bit for the iframe to be rendered
 			setTimeout(() => {
 				if (Object.keys(requestMsg).length > 0) {
