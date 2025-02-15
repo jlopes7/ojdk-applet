@@ -14,9 +14,9 @@ import org.oplauncher.OPLauncherException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Arrays;
 
 import static org.apache.http.entity.ContentType.APPLICATION_JSON;
-import static org.oplauncher.ErrorCode.FAILED_TO_LOAD_RESOURCE;
 import static org.oplauncher.ErrorCode.NO_VALID_CHROME_TOKEN_FOUND;
 import static org.oplauncher.IConstants.HTTP_HEADER_CHROMEEXT_TKN;
 
@@ -29,10 +29,19 @@ public abstract class OPHandler implements HttpAsyncRequestHandler<HttpRequest> 
     }
 
     protected void _VALIDATE_REQUEST_(HttpRequest request) throws OPLauncherException {
+        _VALIDATE_REQUEST_(request, true);
+    }
+
+    protected void _VALIDATE_REQUEST_(HttpRequest request, boolean validateAppToken) throws OPLauncherException {
         String configuredToken = ConfigurationHelper.getOPChromeToken().trim();
+        if (LOGGER.isDebugEnabled()) {
+            Arrays.stream(request.getAllHeaders()).forEach(header -> {
+               LOGGER.debug("(_VALIDATE_REQUEST_) Header entry from request -> {} := {}", header.getName(), header.getValue());
+            });
+        }
         Header header = request.getFirstHeader(HTTP_HEADER_CHROMEEXT_TKN);
         if (header == null) {
-            throw new OPLauncherException("Missing ext token in the request", NO_VALID_CHROME_TOKEN_FOUND);
+            throw new OPLauncherException("Missing ext token in the request: " + HTTP_HEADER_CHROMEEXT_TKN, NO_VALID_CHROME_TOKEN_FOUND);
         }
         String requestToken = header.getValue();
 

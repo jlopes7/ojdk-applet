@@ -2,6 +2,7 @@ package org.oplauncher.op;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.oplauncher.OpCode;
 
 import java.util.ArrayList;
@@ -38,6 +39,10 @@ public class OPPayload {
         return _parameters!=null ? _parameters : new ArrayList<String>();
     }
 
+    public String getAppletName() {
+        return _appletName;
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("Payload: {")
@@ -72,6 +77,10 @@ public class OPPayload {
     @JsonProperty("h")
     private Integer _height;
 
+    @JsonProperty("applet_name")
+    private String _appletName;
+
     @JsonProperty("params")
+    @JsonDeserialize( using = OPPayloadDeserializer.class, contentAs = String.class )
     private List<String> _parameters;
 }

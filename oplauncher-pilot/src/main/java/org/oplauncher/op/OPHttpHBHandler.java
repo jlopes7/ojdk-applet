@@ -26,7 +26,7 @@ public class OPHttpHBHandler extends OPHandler {
     @Override
     public void handle(HttpRequest request, HttpAsyncExchange httpExchange, HttpContext httpContext) throws HttpException, IOException {
         try {
-            _VALIDATE_REQUEST_(request);
+            //_VALIDATE_REQUEST_(request, false);
 
             OPResponse response = new OPResponse(SUCCESS_RESPONSE, true, NO_PROP_CODE);
             // process the response

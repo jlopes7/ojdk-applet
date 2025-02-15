@@ -1,19 +1,15 @@
 package org.oplauncher.runtime;
 
 import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.*;
 import org.oplauncher.op.OPMessage;
 import org.oplauncher.op.OPPayload;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 import static org.oplauncher.ErrorCode.APPTKN_AUTH_ERROR;
 import static org.oplauncher.ErrorCode.EMPTY_JSON_PAYLOAD;
-import static org.oplauncher.OpCode.LOAD_APPLET;
+import static org.oplauncher.OpCode.*;
 
 public class AppletOPDispatcher {
     static private final Logger LOGGER = LogManager.getLogger(AppletOPDispatcher.class);
@@ -51,10 +47,10 @@ public class AppletOPDispatcher {
                 if (posx != null && posy != null) {
                     LOGGER.info("Changing Applet position to X:{}, Y:{}", posx, posy);
 
-                    getAppletController()
+                    getAppletController(payload)
                             .getAppletClassLoader()
                             .getAppletParameters()
-                            .setPosition(getAppletName(), posx, posy);
+                            .setPosition(payload.getAppletName(), posx, posy);
                 }
                 else {
                     LOGGER.warn("Cannot change Applet position because one of its Axis was not provided");
@@ -76,13 +72,20 @@ public class AppletOPDispatcher {
                 }
                 LOGGER.info("Processing Applet OP [{}]", payload.getOpCode().opcode());
 
+                OpCode opcode = payload.getOpCode();
                 /*
                  * We need to switch between the OP_LOAD op, and all other OPs, OP_LOAD requires special attention
                  * because it needs to reinitialize the applet loader
                  */
-                if ( payload.getOpCode() != LOAD_APPLET ) {
+                if ( opcode != LOAD_APPLET ) {
+                    // When the window is detached, these events are ignored
+                    if ( (opcode == CHANGE_POSTION || opcode == FOCUS_APPLET || opcode == BLUR_APPLET) &&
+                            !ConfigurationHelper.trackBrowserWindowPosition()) {
+                        return;
+                    }
+
                     prepareExecutionIfNecessary(payload)
-                            .getAppletController()
+                            .getAppletController(payload)
                             .executeOP(payload.getOpCode(), payload.getParameters().toArray(new String[0]));
                 }
                 else {
@@ -119,6 +122,12 @@ public class AppletOPDispatcher {
 
     public AppletController getAppletController() {
         return _appletController;
+    }
+
+    public AppletController getAppletController(OPPayload payload) {
+        return OPLauncherDispatcherPool
+                .getActiveDispatcherInstance(payload.getAppletName())
+                .getAppletLoader(payload.getAppletName()).getAppletController();
     }
 
     // class properties

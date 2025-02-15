@@ -20,6 +20,7 @@ public enum ErrorCode {
     APPTKN_AUTH_ERROR(8016),
     NO_VALID_APP_TOKEN(8017),
     DISPATCHER_GENERAL_ERROR(8018),
+    DISPATCHER_MISSING(8019),
       ;
 
     private ErrorCode(int cd) {

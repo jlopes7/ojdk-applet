@@ -14,6 +14,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import static org.oplauncher.ErrorCode.DISPATCHER_MISSING;
+import static org.oplauncher.OPLauncherController.getDispatcherPatternID;
+
 public class OPLauncherDispatcherPool {
     static private final Lock LOCK = new ReentrantLock();
     static private final Logger LOGGER = LogManager.getLogger(OPLauncherDispatcherPool.class);
@@ -69,6 +72,21 @@ public class OPLauncherDispatcherPool {
         LOCK.lock();
         try {
             return INSTANCE_POOL.remove(name);
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    static public final OPLauncherDispatcher getActiveDispatcherInstance(final String kAppletName) {
+        LOCK.lock();
+        try {
+            final String kCtrlName = getDispatcherPatternID(kAppletName);
+            if (!INSTANCE_POOL.containsKey(kCtrlName)) {
+                throw new OPLauncherException("Could not find an OP dispatcher instance associated with the control ID: " + kCtrlName, DISPATCHER_MISSING);
+            }
+
+            return INSTANCE_POOL.get(kCtrlName);
         }
         finally {
             LOCK.unlock();

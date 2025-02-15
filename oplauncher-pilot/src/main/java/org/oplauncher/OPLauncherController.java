@@ -19,10 +19,14 @@ public class OPLauncherController {
         ConfigurationHelper.intializeLog();
     }
 
+    static public final String getDispatcherPatternID(final String kName) {
+        return new StringBuilder("APPLETCTRL: ").append(kName).toString();
+    }
+
     public String processLoadAppletOp(List<String> parameters) {
         try {
             final String kName = CommunicationParameterParser.resolveAppletName(parameters);
-            final String kCtrlName = new StringBuilder("APPLETCTRL: ").append(kName).toString();
+            final String kCtrlName = getDispatcherPatternID(kName);
             OPLauncherDispatcherPool pool = OPLauncherDispatcherPool.getActivePoolInstance(this);
             OPLauncherDispatcher dispatcher = pool.getInstance(kCtrlName);
 
