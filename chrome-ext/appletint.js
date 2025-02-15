@@ -179,8 +179,13 @@ document.addEventListener("DOMContentLoaded", () => {
 	});
 });
 
+/**
+ * return the custom iFrame ID
+ * @param idx	the index to be used to create the Applet container element
+ * @returns {string}	the new ID
+ */
 function getAppletIFrameID(idx) {
-	return (OPLAUNCHER_IFRAME_ID.concat(idx));
+	return (OPLAUNCHER_IFRAME_ID.concat("_" + idx));
 }
 
 /**
@@ -216,10 +221,11 @@ function sendUnloadMessageToBackgroundPort() {
 		});
 	});
 
-	for (let i=0 ; i < frame_count ; i++)
-	let iframe = document.getElementById(getAppletIFrameID(i));
-	if (iframe) {
-		iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher unloaded.';
+	for (let i=0 ; i < frame_count ; i++) {
+		let iframe = document.getElementById(getAppletIFrameID(i));
+		if (iframe) {
+			iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher unloaded.';
+		}
 	}
 
 	return true;
