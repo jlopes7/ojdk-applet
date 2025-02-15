@@ -14,6 +14,11 @@ const PREFERED_PIPE = PIPE_REST;
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 
 const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
+
+const registeredAppletList = new Array();
+
+let frame_count = 0;
+
 /* ===========================================================
  	HTML CONTENT FOR THE APPLET IFRAME
    =========================================================== */
@@ -62,13 +67,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase, appletName, width, height });
 
+		// Register the Applet name to the list
+		registeredAppletList.push({
+			appletName: appletName,
+			className: className,
+			archiveUrl: archiveUrl,
+			codebase: codebase,
+			width: width,
+			height: height
+		});
+		console.info ("Found Applet: %s . Number of applets in the registered list: %d", appletName, registeredAppletList.length);
+
 		// Create an iframe replacement for the applet
 		const iframe = document.createElement("iframe");
 		iframe.width = width;
 		iframe.height = height;
 		iframe.style.border = "none";
 		iframe.style.backgroundColor = "white";
-		iframe.id = OPLAUNCHER_IFRAME_ID;
+		iframe.id = getAppletIFrameID(frame_count++);
 
 		// Set the iframe content dynamically
 		iframe.srcdoc = APPLET_HTML_CONTENT_OPEN;
@@ -163,6 +179,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	});
 });
 
+function getAppletIFrameID(idx) {
+	return (OPLAUNCHER_IFRAME_ID.concat(idx));
+}
+
 /**
  * Return all cookies from the backend
  * @param callback	the callback function to be called when a response is provided
@@ -187,11 +207,17 @@ function getCookies(callback) {
  * successfully
  */
 function sendUnloadMessageToBackgroundPort() {
-	dispatchToBackground({
-		op: OP_UNLOAD
+	// Dispatch the event for all applets
+	registeredAppletList.forEach(entry => {
+		console.warn("Unloading the Applet from the backend", entry);
+		dispatchToBackground({
+			op: OP_UNLOAD,
+			applet_name: entry.appletName,
+		});
 	});
 
-	let iframe = document.getElementById(OPLAUNCHER_IFRAME_ID);
+	for (let i=0 ; i < frame_count ; i++)
+	let iframe = document.getElementById(getAppletIFrameID(i));
 	if (iframe) {
 		iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher unloaded.';
 	}
@@ -218,26 +244,32 @@ function genRandomAppletName(size) {
  * Sends an blue message to the port, so the JVM could be placed behind, another window
  */
 function sendBlurFocusMessageToBackgroundPort(visible, lowVisibility) {
-	if (visible) {
-		const commMsg = {
-			op: OP_FOCUS
-		};
-		if (lowVisibility) Object.assign(commMsg, {
-			parameters: [LOW_VISIBILITY_ST]
-		});
+	registeredAppletList.forEach(entry => {
+		if (visible) {
+			console.info("Processing the focus_OP to OPLauncher for the applet:", entry.appletName);
+			const commMsg = {
+				op: OP_FOCUS,
+				applet_name: entry.appletName
+			};
+			if (lowVisibility) Object.assign(commMsg, {
+				parameters: [LOW_VISIBILITY_ST]
+			});
 
-		dispatchToBackground(commMsg);
-	}
-	else {
-		const commMsg = {
-			op: OP_BLUR
-		};
-		if (lowVisibility) Object.assign(commMsg, {
-			parameters: [LOW_VISIBILITY_ST]
-		});
+			dispatchToBackground(commMsg);
+		}
+		else {
+			console.info("Processing the blur_OP to OPLauncher for the applet:", entry.appletName);
+			const commMsg = {
+				op: OP_BLUR,
+				applet_name: entry.appletName
+			};
+			if (lowVisibility) Object.assign(commMsg, {
+				parameters: [LOW_VISIBILITY_ST]
+			});
 
-		dispatchToBackground(commMsg);
-	}
+			dispatchToBackground(commMsg);
+		}
+	});
 
 	return true;
 }

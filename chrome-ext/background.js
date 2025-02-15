@@ -25,6 +25,7 @@ const HB_CTXROOT = "oplauncher-hb"
 
 // Control flag to activate or de-activate the message sent to the background
 let BackendControlReady = false
+let TriggeredHBControl = false;
 
 if (DEBUG) {
     /**
@@ -143,8 +144,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         }
         else if ( message.pipecfn === PIPE_REST ) {
-            console.info("Loading the applet using a REST OP:", message.appletName);
-            send2OPLauncherJSONPort(message, (resp, port) => {
+            let payload = {};
+            console.info("Transforming the applet message for a REST OP:", message.appletName);
+
+            Object.assign(payload, {
+                op: message.op,
+                applet_name: message.appletName,
+                params: [
+                    message.op,
+                    message.baseUrl,
+                    message.codebase,
+                    message.archiveUrl,
+                    message.appletName,
+                    `width=${message.width};height=${message.height};posx=${message.posx};posy=${message.posy};`.concat(message.parameters),
+                    message.className
+                ]
+            });
+            console.info("Parsed message payload for(%s) OPLauncher: ", message.appletName, payload);
+
+            send2OPLauncherJSONPort(payload, (resp, port) => {
                 console.info("Got a response back from the 'unload' OP from the OPLauncher", resp);
                 sendResponse ( resp );
             });
@@ -197,24 +215,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  * @returns {boolean}       for async processing
  */
 function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
-    chrome.storage.local.get(["httpPort", "hostURL", "contextRoot", "personalToken"], function (config) {
-        const host = config.hostURL || "127.0.0.1";
-        const contextRoot = config.contextRoot || "oplauncher-op";
-        const port = config.httpPort || 7777;
-        const token = config.personalToken || DEFAULT_APP_TOKEN;
-        const backendURL = `http://${host}:${port}/${contextRoot}`;
+    const MAX_TRIES = 10; // 10 seconds
+    let try_attempts = 1;
+    let ctrl_interval;
 
-        if (messageToNative) {
-            Object.assign(messageToNative, {
-                _tkn_: token
-            });
+    // Safe way only sending a request when the port is open for connection in the background
+    function safeSendRequest() {
+        if (messageToNative.op) { // don't run on undefined Intervals ... JS bug
+            if (BackendControlReady) {
+                console.info("OPLauncher backend port is ready! Sending request...");
+                chrome.storage.local.get(["httpPort", "hostURL", "contextRoot", "personalToken"], function (config) {
+                    const host = config.hostURL || "127.0.0.1";
+                    const contextRoot = config.contextRoot || "oplauncher-op";
+                    const port = config.httpPort || 7777;
+                    const token = config.personalToken || DEFAULT_APP_TOKEN;
+                    const backendURL = `http://${host}:${port}/${contextRoot}`;
+
+                    if (messageToNative) {
+                        Object.assign(messageToNative, {
+                            _tkn_: token
+                        });
+                    }
+                    console.info("Received unload message from content script. Sending to backend...", messageToNative);
+
+                    const requestMsg = JSON.stringify(messageToNative);
+                    // Send to OPLauncher
+                    send2port(SELECTED_BACKEND_TP, requestMsg, backendURL, callback, callbackErr);
+                });
+
+                if (ctrl_interval) clearInterval(ctrl_interval);
+            } else {
+                console.warn("OPLauncher backend port is not available yet for (%s := %s). Attempt: %s", messageToNative.op, messageToNative.appletName, try_attempts);
+                try_attempts++;
+                if (try_attempts > MAX_TRIES) {
+                    console.error("After %s tries, the remote connection door could not be reached, giving up! Applet: %s := %s", try_attempts, messageToNative.op, messageToNative.appletName);
+                    if (callbackErr) callbackErr(new Error("OPLauncher backend port is not available"));
+                    clearInterval(ctrl_interval);
+                }
+            }
         }
-        console.info("Received unload message from content script. Sending to backend...", messageToNative);
+    }
 
-        const requestMsg = JSON.stringify(messageToNative);
-        // Send to OPLauncher
-        send2port(SELECTED_BACKEND_TP, requestMsg, backendURL, callback, callbackErr);
-    });
+    BackendControlReady = false;
+    // Lets check start the HB if necessary
+    startOPHBCheck();
+    // Starts the thread loop to check if the connection is available or not
+    ctrl_interval = setInterval(safeSendRequest, 1000); // ping on every second...
 
     return true;
 }
@@ -300,8 +346,11 @@ function arrayBufferToBase64(buffer) {
 /**
  * Checks to see if the backend server is active or not
  */
-function checkBackendStatus() {
-    if (BackendControlReady) return; // Skip check if already ready
+function checkBackendStatus(hbInterval) {
+    if (BackendControlReady) {
+        clearInterval(hbInterval);
+        return;
+    } // Skip check if already ready
 
     chrome.storage.local.get(["httpPort", "hostURL", "personalToken"], function (config) {
         const host = config.hostURL || "127.0.0.1";
@@ -316,7 +365,9 @@ function checkBackendStatus() {
             if (response.ok) {
                 console.info("OPLauncher backend server is now available.");
                 BackendControlReady = true;
-                chrome.alarms.clear(ALARM_SERVER_HB); // Stop checking once backend is ready
+                TriggeredHBControl = false;
+                //chrome.alarms.clear(ALARM_SERVER_HB); // Stop checking once backend is ready
+                clearInterval(hbInterval);
             }
             else {
                 console.warn("Wrong response from the backend, not ready:", response.status);
@@ -329,12 +380,24 @@ function checkBackendStatus() {
 }
 
 /**
- * Creates a Alarm check to see if OPLauncher REST server is active yet or not
+ * Starts the ALARM for checking the OPLauncher backend port
  */
-chrome.alarms.onAlarm.addListener((alarm) => {
-    console.debug("Received an alarm", alarm);
-    if (alarm.name === ALARM_SERVER_HB) {
-        checkBackendStatus();
+function startOPHBCheck() {
+    /*chrome.alarms.onAlarm.addListener((alarm) => {
+        console.debug("Received an alarm", alarm);
+        if (alarm.name === ALARM_SERVER_HB) {
+            checkBackendStatus();
+        }
+    });
+    chrome.alarms.create(ALARM_SERVER_HB, { periodInMinutes: (1 / 60) }); // 1min / 60 seconds ~ 1 sec*/
+    /*
+     * Creates an Alarm check to see if OPLauncher REST server is active yet or not
+     */
+    console.info("Starting OPHB check. Triggering status: ", TriggeredHBControl);
+    if ( !TriggeredHBControl ) {
+        TriggeredHBControl = true;
+        const hbInterval = setInterval(() => {
+            checkBackendStatus(hbInterval);
+        }, 500 /*every 0.5 sec*/);
     }
-});
-chrome.alarms.create(ALARM_SERVER_HB, { periodInMinutes: 1 });
+}
