@@ -43,5 +43,8 @@
 #define RC_ERR_FAILED_WSL_LOAD              7039
 #define RC_ERR_TCPIP_FAILED                 7040
 #define RC_ERR_TCPIP_CLIENT_CONNECTED       7041
+#define RC_ERR_CREATEUPT_REGKEY             7042
+#define RC_ERR_READ_READ_REGVAL             7043
+#define RC_ERR_SECUR_GENRAND_DES3_KEY       7044
 
 #endif //_ERRCODES_H

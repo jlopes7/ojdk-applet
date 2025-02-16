@@ -162,8 +162,9 @@ int main(void) {
     // Parse the incoming JSON (a simple example without full JSON parsing)
     char *op, *applet_name, *class_name, *archive_url, *base_url, *codebase, *height, *width;
     double posx, posy;
+    umagicnum_t magictkn;
     rc = parse_msg_from_chrome_init(buffer, &op, &class_name, &applet_name,
-                                    &archive_url, &base_url, &codebase, &height,
+                                    &archive_url, &base_url, &codebase, &magictkn, &height,
                                     &width, &posx, &posy, NULL, NULL);
 
     if ( !_IS_SUCCESS(rc) ) {
@@ -181,8 +182,8 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-    logmsg(LOGGING_NORMAL, "Fields sent by Chrome: OP[%s], CLASSNAME[%s], APPLETNAME[%s], ARCHIVE[%s], CODEBASE[%s], HEIGHT[%s], WIDTH[%s], POSX[%.2f], POSY[%.2f]",
-            op, class_name, applet_name, archive_url, codebase, height, width, posx, posy);
+    logmsg(LOGGING_NORMAL, "Fields sent by Chrome: OP[%s], CLASSNAME[%s], APPLETNAME[%s], ARCHIVE[%s], CODEBASE[%s], HEIGHT[%s], WIDTH[%s], POSX[%.2f], POSY[%.2f], GIVEN_MAGIC[%s]",
+            op, class_name, applet_name, archive_url, codebase, height, width, posx, posy, magictkn);
 
     /*
      * Step 3.1: Signal processing (optional step)

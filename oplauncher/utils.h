@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define INT_MAX_LEN     10
+
 #define SMALL_BUFFER    0x00000010 /*16*/
 #define BUFFER_SIZE	    0x00001000 /*4K*/
 #define MID_BUFFER_SIZE	0x00008000 /*32K*/
@@ -96,6 +98,7 @@ typedef struct {
 } data_tuplet_t;
 
 typedef unsigned short returncode_t;
+typedef unsigned long long umagicnum_t;
 
 typedef enum {
     OP_LOAD = 0,
@@ -108,7 +111,7 @@ returncode_t send_jsonerror_message(const char* errorMsg, const returncode_t err
 returncode_t send_jsonsuccess_message(const char* message);
 returncode_t chrome_read_message_length(uint32_t *message_length);
 returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **className, char **appletName,
-                                        char **archiveUrl, char **baseUrl, char **codebase,
+                                        char **archiveUrl, char **baseUrl, char **codebase, umagicnum_t *magictkn,
                                         char **height, char **width, double *posx, double *posy,
                                         data_tuplet_t *tupletCookies, data_tuplet_t *parameters);
 returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void **propval);

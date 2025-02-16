@@ -22,6 +22,8 @@
 #define INI_SECTION_OPLAUNCHER_PROP_ACTIVE "op_server_active"
 #define INI_SECTION_OPLAUNCHER_PROP_PORT   "op_server_port"
 
+#define INI_SECTION_SECUR_PROP_KEYMAXDAYS  "keymaxdays"
+
 void get_config_path(char *config_path, size_t size);
 void copy_template_ini(const char *dest_path);
 void ensure_ini_exists();

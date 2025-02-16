@@ -122,6 +122,7 @@ set(SOURCES
         ini_config.c
         logging.c
         op_server.c
+        oplauncher_secur.c
 )
 
 # Add header files (optional, for IDE indexing)
@@ -135,6 +136,7 @@ set(HEADERS
         ini_config.h
         logging.h
         op_server.h
+        oplauncher_secur.h
 )
 
 # Specific files per platform
@@ -143,11 +145,13 @@ if (WIN32)
         ui/win_splash.c
         ui/win_java_console.c
         ui/win_tray_ctrl.c
+        oplauncher_win_reg.c
     )
     list(APPEND HEADERS
         ui/win_splash.h
         ui/win_java_console.h
         ui/win_tray_ctrl.h
+        oplauncher_win_reg.h
     )
 
     # Resource files

@@ -1,6 +1,11 @@
 #include "oplauncher.h"
 
 #include "jvm_launcher.h"
+#if defined(_WIN32) || defined(_WIN64)
+#	include "oplauncher_win_reg.h"
+#endif
+#include "ini_config.h"
+#include "oplauncher_secur.h"
 
 extern char *applet_policy_filepath;
 
@@ -13,6 +18,92 @@ void launch_jvm(const char *class_name, const char *jar_path, const char *params
 
 returncode_t process_op_tcpip_request(const char *jsonmsg) {
 	// TODO: Implement
+	return EXIT_SUCCESS;
+}
+
+returncode_t read_encryptkey_token(char **token) {
+	returncode_t rc;
+
+	int klen = BASE64_ENCODED_LEN(DES3_KEY_SIZE);
+
+	PTR(token) = malloc(klen +1);
+	_MEMZERO(token, klen +1);
+
+	rc = read_registry_string(REG_TOKEN, PTR(token), BUFFER_SIZE);
+	if ( !_IS_SUCCESS(rc) && RC_REGKEYVAL_DOESNT_EXIST(rc) ) {
+		unsigned char *token_tmp;
+		rc = generate_des3_key(&token_tmp);
+		if ( !_IS_SUCCESS(rc) ) {
+			return rc;
+		}
+		base64_encode_key(token_tmp, token);
+		free(token_tmp);
+
+		// Save the token to the registry
+		rc = crtupt_registry_value(REG_TOKEN, PTR(token), REG_SZ);
+		if ( !_IS_SUCCESS(rc) ) {
+			return rc;
+		}
+	}
+	else if (!_IS_SUCCESS(rc)) {
+		return rc;
+	}
+	/// SUCCESS !!!
+	else {
+		DWORD regdt;
+		rc = read_registry_dword(REG_UDATE, &regdt);
+		if ( !_IS_SUCCESS(rc) && RC_REGKEYVAL_DOESNT_EXIST(rc) ) {
+			DWORD current_date;
+			get_now_dword(&current_date);
+
+			rc = crtupt_registry_value(REG_UDATE, &current_date, REG_DWORD);
+			if ( !_IS_SUCCESS(rc) ) {
+				return rc;
+			}
+		}
+		else {
+			int numdays;
+			char numdaysstr[INT_MAX_LEN +1];
+			_MEMZERO(numdaysstr, INT_MAX_LEN +1);
+			_MEMZERO(token, klen +1);
+
+			read_ini_value(INI_SECTION_SECURITY, INI_SECTION_SECUR_PROP_KEYMAXDAYS, numdaysstr, INT_MAX_LEN);
+			numdays = atoi( numdaysstr );
+
+			if ( !is_udate_within_numdays(regdt, numdays) ) {
+				char *tmptkn;
+				DWORD current_date;
+				unsigned char *token_tmp;
+
+				get_now_dword(&current_date);
+
+				rc = generate_des3_key(&token_tmp);
+				if ( !_IS_SUCCESS(rc) ) {
+					return rc;
+				}
+				base64_encode_key(token_tmp, &tmptkn);
+#if defined(_WIN32) || defined(_WIN64)
+				strncpy_s(PTR(token), klen+1, tmptkn, strlen(tmptkn));
+#else
+				strncpy(PTR(token), tmptkn, klen);
+#endif
+				free(tmptkn);
+				free(token_tmp);
+
+				// Save the new token to the registry
+				rc = crtupt_registry_value(REG_TOKEN, PTR(token), REG_SZ);
+				if ( !_IS_SUCCESS(rc) ) {
+					return rc;
+				}
+				// Save the current date to the registry
+				rc = crtupt_registry_value(REG_UDATE, &current_date, REG_DWORD);
+				if ( !_IS_SUCCESS(rc) ) {
+					return rc;
+				}
+			}
+		}
+	}
+
 	return EXIT_SUCCESS;
 }
 

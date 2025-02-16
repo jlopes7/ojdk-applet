@@ -18,5 +18,6 @@
 #define CHROME_EXT_MSG_WIDTH        "width"         /*The Applet configured width*/
 #define CHROME_EXT_MSG_POSX         "posx"          /*Location of the Applet in the screen under the X-axis*/
 #define CHROME_EXT_MSG_POSY         "posy"          /*Location of the Applet in the screen under the Y-axis*/
+#define CHROME_EXT_MSG_MAGICTKN     "magicToken"    /*Represents the magic number needed to initiate the conversation*/
 
 #endif //CHROME_EXT_COMM_H

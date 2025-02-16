@@ -317,7 +317,7 @@ returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void 
  * @return
  */
 returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **className, char **appletName,
-                                        char **archiveUrl, char **baseUrl, char **codebase,
+                                        char **archiveUrl, char **baseUrl, char **codebase, umagicnum_t *magictkn,
                                         char **height, char **width, double *posx, double *posy,
                                         data_tuplet_t *tupletCookies, data_tuplet_t *parameters) {
     cJSON   *json_op,
@@ -329,7 +329,8 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
             *json_height,
             *json_width,
             *json_posx,
-            *json_posy;
+            *json_posy,
+            *json_magictkn;
 
     logmsg(LOGGING_NORMAL, "Parsing the JSON Message: %s", jsonmsg);
     // Parse the JSON string
@@ -353,6 +354,7 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
     json_width = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_WIDTH);
     json_posx = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_POSX);
     json_posy = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_POSY);
+    json_magictkn = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_MAGICTKN);
 
     // Gets the extracted values
     if (cJSON_IsString(json_op) && (json_op->valuestring != NULL)) {
@@ -378,6 +380,9 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
     }
     if (cJSON_IsString(json_width) && (json_width->valuestring != NULL)) {
         PTR(width) = strdup(json_width->valuestring);
+    }
+    if (cJSON_IsNumber(json_magictkn)) {
+        PTR(magictkn) = json_magictkn->valueint;
     }
     if (cJSON_IsNumber(json_posx)) {
         PTR(posx) = json_posx->valuedouble;
