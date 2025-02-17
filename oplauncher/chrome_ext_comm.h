@@ -19,5 +19,7 @@
 #define CHROME_EXT_MSG_POSX         "posx"          /*Location of the Applet in the screen under the X-axis*/
 #define CHROME_EXT_MSG_POSY         "posy"          /*Location of the Applet in the screen under the Y-axis*/
 #define CHROME_EXT_MSG_MAGICTKN     "magicToken"    /*Represents the magic number needed to initiate the conversation*/
+#define CHROME_EXT_MSG_PAYLOAD      "payload"       /*Define the containing property for the encrypt payload coming from Chrome*/
+#define CHROME_EXT_MSG_MSGSIZE      "msgsize"       /*Define the original message size before encryption*/
 
 #endif //CHROME_EXT_COMM_H

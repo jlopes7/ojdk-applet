@@ -97,8 +97,9 @@ typedef struct {
     char	*value;
 } data_tuplet_t;
 
-typedef unsigned short returncode_t;
-typedef unsigned long long umagicnum_t;
+typedef unsigned short      returncode_t;
+typedef unsigned long long  umagicnum_t;
+typedef unsigned char       byte_t;
 
 typedef enum {
     OP_LOAD = 0,

@@ -5,6 +5,9 @@ else()
     project(oplauncher LANGUAGES C)
 endif()
 
+# Debug purpose, comment out for release
+add_definitions(-D_DEBUG_)
+
 # Set the C standard
 set(CMAKE_C_STANDARD 11)
 

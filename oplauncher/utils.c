@@ -286,7 +286,7 @@ returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void 
         PTR(propval) = (char *) strdup(json_prop->valuestring);
     }
     else if (cJSON_IsNumber(json_prop) || cJSON_IsBool(json_prop)) {
-        PTR(propval) = (int) json_prop->valueint;
+        PTR(propval) = &json_prop->valueint;
     }
     else {
         logmsg(LOGGING_ERROR, "JSON Parse Error: Unknown JSON type");
@@ -498,9 +498,9 @@ returncode_t chrome_read_next_message(char *buffer) {
 returncode_t chrome_read_message(char *buffer) {
     uint32_t message_length;
 #if defined(_DEBUG_)
-    FILE *file = fopen("test_input.bin", "rb");
+    FILE *file = fopen("test_encrypted_input.bin", "rb");
     if (!file) {
-        perror("Failed to open test_input.bin");
+        perror("Failed to open test_encrypted_input.bin");
         return 1;
     }
     //printf("Reading input from test_input.bin...\n");

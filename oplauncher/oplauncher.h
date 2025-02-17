@@ -25,5 +25,8 @@ void process_json(const char *input);
 
 returncode_t process_op_tcpip_request(const char *jsonmsg);
 
+returncode_t read_encryptkey_token(char **token);
+returncode_t parse_encrypted_msg_from_chrome(const char *jsonmsg, char **decrypted_msg, char **cipher_key);
+
 #endif
 

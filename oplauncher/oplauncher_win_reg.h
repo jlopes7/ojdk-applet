@@ -5,6 +5,8 @@
 
 #define REG_PATH      "SOFTWARE\\OPLauncher"
 #define REG_TOKEN     "Token"
+#define REG_INITOKEN  "IniToken"
+#define REG_USEINITKN "UseIniToken"
 #define REG_UDATE     "UDate"
 
 #define RC_REGKEYVAL_DOESNT_EXIST(X)    ((X) == RC_ERR_READ_READ_REGVAL)

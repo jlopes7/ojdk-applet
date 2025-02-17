@@ -5,6 +5,7 @@
 #	include "oplauncher_win_reg.h"
 #endif
 #include "ini_config.h"
+#include "logging.h"
 #include "oplauncher_secur.h"
 
 extern char *applet_policy_filepath;
@@ -21,84 +22,179 @@ returncode_t process_op_tcpip_request(const char *jsonmsg) {
 	return EXIT_SUCCESS;
 }
 
+returncode_t parse_encrypted_msg_from_chrome(const char *jsonmsg, char **decrypted_msg, char **b64_cipher_key) {
+	size_t msgsize = BUFFER_SIZE;
+	byte_t *cipher_key;
+	cJSON   *json,
+			*json_payload,
+			*json_msgsize;
+	char *encrypted_payload;
+
+	returncode_t rc = read_encryptkey_token(b64_cipher_key);
+	if ( !_IS_SUCCESS(rc) ) {
+		return rc;
+	}
+	logmsg(LOGGING_NORMAL, "Parsing the Encrypted Message from Chrome: %s", jsonmsg);
+
+	// Parse the JSON string
+	json = cJSON_Parse(jsonmsg);
+	if (json == NULL) {
+		const char *error_ptr = cJSON_GetErrorPtr();
+		if (error_ptr != NULL) {
+			logmsg(LOGGING_ERROR, "JSON Parse Error: %s", error_ptr);
+		}
+		return RC_ERR_COULDNOT_PARSEJSON;
+	}
+
+	// Extract the values
+	json_payload = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_PAYLOAD);
+	if (cJSON_IsString(json_payload) && (json_payload->valuestring != NULL)) {
+		encrypted_payload = strdup(json_payload->valuestring);
+	}
+	else {
+		logmsg(LOGGING_ERROR, "Payload parsing the message missing the element: %s", CHROME_EXT_MSG_PAYLOAD);
+		return RC_ERR_CHROME_WRONG_PAYLOAD;
+	}
+
+	json_msgsize = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_MSGSIZE);
+	if (cJSON_IsNumber(json_msgsize)) {
+		msgsize = json_msgsize->valueint;
+	}
+	else {
+		logmsg(LOGGING_ERROR, "Payload parsing the message missing the element: %s", CHROME_EXT_MSG_MSGSIZE);
+		free(encrypted_payload);
+		return RC_ERR_CHROME_WRONG_PAYLOAD;
+	}
+
+	DWORD key_len = DES3_KEY_SIZE;
+	rc = base64_decode(PTR(b64_cipher_key), &cipher_key, &key_len);
+	if ( !_IS_SUCCESS(rc) ) {
+		return rc;
+	}
+
+	rc = des3_decrypt(cipher_key, encrypted_payload, (byte_t**) decrypted_msg);
+	if ( !_IS_SUCCESS(rc) ) {
+		free(cipher_key);
+		free(encrypted_payload);
+
+		return rc;
+	}
+
+	logmsg(LOGGING_NORMAL, "Decrypted JSON payload is: %s", PTR(decrypted_msg));
+
+	free(cipher_key);
+	free(encrypted_payload);
+
+	return EXIT_SUCCESS;
+}
+
 returncode_t read_encryptkey_token(char **token) {
 	returncode_t rc;
+	char ini_token[BUFFER_SIZE];
+	DWORD initkn_active = 0;
 
 	int klen = BASE64_ENCODED_LEN(DES3_KEY_SIZE);
 
 	PTR(token) = malloc(klen +1);
-	_MEMZERO(token, klen +1);
+	_MEMZERO(PTR(token), klen +1);
 
-	rc = read_registry_string(REG_TOKEN, PTR(token), BUFFER_SIZE);
-	if ( !_IS_SUCCESS(rc) && RC_REGKEYVAL_DOESNT_EXIST(rc) ) {
-		unsigned char *token_tmp;
-		rc = generate_des3_key(&token_tmp);
-		if ( !_IS_SUCCESS(rc) ) {
-			return rc;
-		}
-		base64_encode_key(token_tmp, token);
-		free(token_tmp);
-
-		// Save the token to the registry
-		rc = crtupt_registry_value(REG_TOKEN, PTR(token), REG_SZ);
-		if ( !_IS_SUCCESS(rc) ) {
-			return rc;
-		}
-	}
-	else if (!_IS_SUCCESS(rc)) {
+	// Reads the initialization info for verifying the token direction
+	rc = read_registry_string(REG_INITOKEN, ini_token, BUFFER_SIZE);
+	if ( !_IS_SUCCESS(rc) ) {
+		logmsg(LOGGING_ERROR, "Failed to read the initialization token from the Windows Registry. Maybe missing the key: %s", REG_INITOKEN);
 		return rc;
 	}
-	/// SUCCESS !!!
-	else {
-		DWORD regdt;
-		rc = read_registry_dword(REG_UDATE, &regdt);
-		if ( !_IS_SUCCESS(rc) && RC_REGKEYVAL_DOESNT_EXIST(rc) ) {
-			DWORD current_date;
-			get_now_dword(&current_date);
+	logmsg(LOGGING_NORMAL, "Initializing token:= %s", ini_token);
 
-			rc = crtupt_registry_value(REG_UDATE, &current_date, REG_DWORD);
+	rc = read_registry_dword(REG_USEINITKN, &initkn_active);
+	if ( !_IS_SUCCESS(rc) ) {
+		logmsg(LOGGING_ERROR, "Failed to read the initialization status for the token. Maybe missing the key: %s", REG_USEINITKN);
+		return rc;
+	}
+
+	// If the initalization token is active, use it instead of implementing the self-gen moving forward
+	if ( INITOKEN_ACTIVE(initkn_active) ) {
+		logmsg(LOGGING_NORMAL, "Initializing token process is activated! Using := %s", ini_token);
+
+#if defined(_WIN32) || defined(_WIN64)
+		strncpy_s(PTR(token), klen, ini_token, strlen(ini_token));
+#else
+		strncpy(PTR(token), ini_token, klen);
+#endif
+	}
+	else {
+		logmsg(LOGGING_NORMAL, "Initiation Token is de-active, using the normal token process generator");
+		rc = read_registry_string(REG_TOKEN, PTR(token), BUFFER_SIZE);
+		if ( !_IS_SUCCESS(rc) && RC_REGKEYVAL_DOESNT_EXIST(rc) ) {
+			unsigned char *token_tmp;
+			rc = generate_des3_key(&token_tmp);
+			if ( !_IS_SUCCESS(rc) ) {
+				return rc;
+			}
+			base64_encode(token_tmp, token);
+			free(token_tmp);
+
+			// Save the token to the registry
+			rc = crtupt_registry_value(REG_TOKEN, PTR(token), REG_SZ);
 			if ( !_IS_SUCCESS(rc) ) {
 				return rc;
 			}
 		}
+		else if (!_IS_SUCCESS(rc)) {
+			return rc;
+		}
+		/// SUCCESS !!!
 		else {
-			int numdays;
-			char numdaysstr[INT_MAX_LEN +1];
-			_MEMZERO(numdaysstr, INT_MAX_LEN +1);
-			_MEMZERO(token, klen +1);
-
-			read_ini_value(INI_SECTION_SECURITY, INI_SECTION_SECUR_PROP_KEYMAXDAYS, numdaysstr, INT_MAX_LEN);
-			numdays = atoi( numdaysstr );
-
-			if ( !is_udate_within_numdays(regdt, numdays) ) {
-				char *tmptkn;
+			DWORD regdt;
+			rc = read_registry_dword(REG_UDATE, &regdt);
+			if ( !_IS_SUCCESS(rc) && RC_REGKEYVAL_DOESNT_EXIST(rc) ) {
 				DWORD current_date;
-				unsigned char *token_tmp;
-
 				get_now_dword(&current_date);
 
-				rc = generate_des3_key(&token_tmp);
-				if ( !_IS_SUCCESS(rc) ) {
-					return rc;
-				}
-				base64_encode_key(token_tmp, &tmptkn);
-#if defined(_WIN32) || defined(_WIN64)
-				strncpy_s(PTR(token), klen+1, tmptkn, strlen(tmptkn));
-#else
-				strncpy(PTR(token), tmptkn, klen);
-#endif
-				free(tmptkn);
-				free(token_tmp);
-
-				// Save the new token to the registry
-				rc = crtupt_registry_value(REG_TOKEN, PTR(token), REG_SZ);
-				if ( !_IS_SUCCESS(rc) ) {
-					return rc;
-				}
-				// Save the current date to the registry
 				rc = crtupt_registry_value(REG_UDATE, &current_date, REG_DWORD);
 				if ( !_IS_SUCCESS(rc) ) {
 					return rc;
+				}
+			}
+			else {
+				int numdays;
+				char numdaysstr[INT_MAX_LEN +1];
+				_MEMZERO(numdaysstr, INT_MAX_LEN +1);
+				_MEMZERO(token, klen +1);
+
+				read_ini_value(INI_SECTION_SECURITY, INI_SECTION_SECUR_PROP_KEYMAXDAYS, numdaysstr, INT_MAX_LEN);
+				numdays = atoi( numdaysstr );
+
+				if ( !is_udate_within_numdays(regdt, numdays) ) {
+					char *tmptkn;
+					DWORD current_date;
+					unsigned char *token_tmp;
+
+					get_now_dword(&current_date);
+
+					rc = generate_des3_key(&token_tmp);
+					if ( !_IS_SUCCESS(rc) ) {
+						return rc;
+					}
+					base64_encode(token_tmp, &tmptkn);
+#if defined(_WIN32) || defined(_WIN64)
+					strncpy_s(PTR(token), klen+1, tmptkn, strlen(tmptkn));
+#else
+					strncpy(PTR(token), tmptkn, klen);
+#endif
+					free(tmptkn);
+					free(token_tmp);
+
+					// Save the new token to the registry
+					rc = crtupt_registry_value(REG_TOKEN, PTR(token), REG_SZ);
+					if ( !_IS_SUCCESS(rc) ) {
+						return rc;
+					}
+					// Save the current date to the registry
+					rc = crtupt_registry_value(REG_UDATE, &current_date, REG_DWORD);
+					if ( !_IS_SUCCESS(rc) ) {
+						return rc;
+					}
 				}
 			}
 		}

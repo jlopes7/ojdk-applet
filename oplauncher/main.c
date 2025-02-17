@@ -1,10 +1,12 @@
 #include <stdio.h>
 
+#include "ini_config.h"
 #include "jvm_launcher.h"
 #include "utils.h"
 #include "oplauncher.h"
 #include "logging.h"
 #include "op_server.h"
+#include "oplauncher_secur.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "ui/win_tray_ctrl.h"
@@ -83,10 +85,36 @@ int main(void) {
 
     logmsg(LOGGING_NORMAL, "Waiting from Chrome to parse the first native message (load_applet)");
     _MEMZERO(buffer, BUFFER_SIZE);
+
+    // Reads the very first chrome message with its encrypt payload
     // First chrome message is to prepare and load the applet
     rc = chrome_read_message(buffer);
     if ( _IS_SUCCESS(rc) ) {
-        send_jsonsuccess_message(DEF_SUCCESS_MESSAGE);
+        char sandbox_status[MAX_PATH];
+        _MEMZERO(sandbox_status, MAX_PATH);
+        read_ini_value(INI_SECTION_SECURITY, INI_SECTION_SECUR_PROP_SANDBOX, sandbox_status, MAX_PATH);
+
+        // If sandbox is active, control is higher than normal
+        if ( is_sandbox_active(sandbox_status) ) {
+            char *uncrypted_msg, *cipher_key;
+            rc = parse_encrypted_msg_from_chrome(buffer, &uncrypted_msg, &cipher_key);
+            if (!_IS_SUCCESS(rc)) {
+                send_jsonerror_message("Could not parse the encrypted message", rc);
+            }
+            else {
+                send_jsonsuccess_message(cipher_key);
+
+                _MEMZERO(buffer, BUFFER_SIZE);
+#if defined(_WIN32) || defined(_WIN64)
+                strncpy_s(buffer, BUFFER_SIZE, uncrypted_msg, strlen(uncrypted_msg));
+#else
+                strncpy(buffer, uncrypted_msg, strlen(uncrypted_msg));
+#endif
+            }
+
+            free(uncrypted_msg);
+            free(cipher_key);
+        }
     }
     else {
         send_jsonerror_message("Could not parse the native message from chrome", rc);
@@ -182,7 +210,7 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-    logmsg(LOGGING_NORMAL, "Fields sent by Chrome: OP[%s], CLASSNAME[%s], APPLETNAME[%s], ARCHIVE[%s], CODEBASE[%s], HEIGHT[%s], WIDTH[%s], POSX[%.2f], POSY[%.2f], GIVEN_MAGIC[%s]",
+    logmsg(LOGGING_NORMAL, "Fields sent by Chrome: OP[%s], CLASSNAME[%s], APPLETNAME[%s], ARCHIVE[%s], CODEBASE[%s], HEIGHT[%s], WIDTH[%s], POSX[%.2f], POSY[%.2f], GIVEN_MAGIC[%d]",
             op, class_name, applet_name, archive_url, codebase, height, width, posx, posy, magictkn);
 
     /*
