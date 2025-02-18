@@ -1,33 +1,14 @@
-const OP_LOAD    = 'load_applet';
-const OP_UNLOAD  = 'unload_applet';
-const OP_COOKIES = 'get_cookies';
-const OP_BLUR    = "blur_applet";
-const OP_FOCUS   = "focus_applet";
-const OP_MOVE    = "move_applet";
-
-const NATIVE_SERVICE = "org.oplauncher.applet_service";
-const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
-const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
-const FETCH_REMOTEAPPLET = false;
-const DEBUG = false;
-
-const JSON_BACKEND = "json";
-const WS2_BACKEND  = "websocket";
-const SELECTED_BACKEND_TP = JSON_BACKEND;
-
-const DEFAULT_APP_TOKEN = "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT";
-
-const PIPE_STDOUT = "pip_stdout";
-const PIPE_REST = "pip_rest";
-
-const ALARM_SERVER_HB = "hbCheck"
-const HB_CTXROOT = "oplauncher-hb"
+importScripts("crypto-js.min.js", "resources.js");
+console.info("Resources loaded successfully:", OPResources);
 
 // Control flag to activate or de-activate the message sent to the background
 let BackendControlReady = false
 let TriggeredHBControl = false;
 
-if (DEBUG) {
+// Saves the token
+let commToken = null;
+
+if (OPResources.DEBUG) {
     /**
      * Testing...
      */
@@ -46,7 +27,7 @@ if (DEBUG) {
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.info(`OP selected: ${message.op}. Message:`, message);
-    if (message.op === OP_COOKIES) {
+    if (message.op === OPResources.OP_COOKIES) {
         chrome.cookies.getAll({ url: message.url }, (cookies) => {
             if (chrome.runtime.lastError) {
                 console.error("Error retrieving cookies:", chrome.runtime.lastError);
@@ -62,18 +43,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         return true;
     }
-    else if (message.op === OP_LOAD) {
+    else if (message.op === OPResources.OP_LOAD) {
         console.info("About to load the OJDK Applet Launcher for the applet:", message.appletName);
 
         /*
          * Option 0: Selects the correct Pipe!
          */
-        if ( message.firstload || message.pipecfn === PIPE_STDOUT) {
+        if ( message.firstload || message.pipecfn === OPResources.PIPE_STDOUT) {
             /*
              * Option 1: Loads the Applet base code and sends its bits as B64 across the wire
              * -> May be a valid option for the future, but for now is deactivated
              */
-            if (FETCH_REMOTEAPPLET) {
+            if (OPResources.FETCH_REMOTEAPPLET) {
                 console.info("Option 1 (fetch remote on Chrome Extension) was selected");
 
                 // Extract the applet details from the message
@@ -117,11 +98,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                         send2OPLauncher(messageToNative, (resp, port) => {
                             if (sender && sender.tab && sender.tab.id) {
+                                commToken = resp.message;
+                                console.info("Got the token back from OPLauncher: %s", commToken);
                                 // Send response back to the content script
-                                chrome.tabs.sendMessage(sender.tab.id, {action: OPLAUNCHER_RESPONSE_CODE, response});
+                                chrome.tabs.sendMessage(sender.tab.id, {action: OPResources.OPLAUNCHER_RESPONSE_CODE, response});
                             } else {
                                 console.warn("Sender tab ID is missing. Cannot send message back.");
                             }
+                        }, /*Errors, including oplauncher disconnects*/ (err) => {
+                            console.warn("The native handler OPLauncher was disconnected. Clearing all events. Error: ", err);
+                            chrome.tabs.sendMessage(sender.tab.id, {action: OPResources.OP_CLEAR_EVT, err});
                         });
                     })
                     .catch(error => {
@@ -136,14 +122,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.info("Option 2 (Applet bits is resolved by OPLauncher) was selected");
 
                 send2OPLauncher(message, (resp, port) => {
-                    let obj = {action: OP_LOAD, response: resp};
+                    let obj = {action: OPResources.OP_LOAD, response: resp};
                     console.info("Got a response back from the native host", resp)
                     console.info("Sending the response back to the UI", obj);
+
+                    commToken = resp.message;
+                    console.info("Request token saved for future requests:", commToken);
+
                     sendResponse(obj);
+                }, /*Errors, including oplauncher disconnects*/ (err) => {
+                    console.warn("The native handler OPLauncher was disconnected. Clearing all events. Message: ", err);
+                    chrome.tabs.sendMessage(sender.tab.id, {action: OPResources.OP_CLEAR_EVT, err});
                 });
             }
         }
-        else if ( message.pipecfn === PIPE_REST ) {
+        else if ( message.pipecfn === OPResources.PIPE_REST ) {
             let payload = {};
             console.info("Transforming the applet message for a REST OP:", message.appletName);
 
@@ -171,28 +164,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.error("Incorrect PIPE configuration [%s]. No changes were applied to the system", message.pipecfn);
         }
     }
-    else if (message.op === OP_UNLOAD) {
+    else if (message.op === OPResources.OP_UNLOAD) {
         console.info("About to unload the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
             console.info("Got a response back from the 'unload' OP from the OPLauncher", resp);
             sendResponse ( resp );
         });
     }
-    else if (message.op === OP_BLUR) {
+    else if (message.op === OPResources.OP_BLUR) {
         console.info("About to blur the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
             console.info("Got a response back from the 'blur' OP from the OPLauncher", resp);
             sendResponse ( resp );
         });
     }
-    else if (message.op === OP_FOCUS) {
+    else if (message.op === OPResources.OP_FOCUS) {
         console.info("About to focus the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
             console.info("Got a response back from the 'focus' OP from the OPLauncher", resp);
             sendResponse ( resp );
         });
     }
-    else if (message.op === OP_MOVE) {
+    else if (message.op === OPResources.OP_MOVE) {
         console.info("About to move the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
             console.info("Got a response back from the 'move' OP from the OPLauncher", resp);
@@ -200,7 +193,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })
     }
     else {
-        console.warn(`OP selected no supported: ${message.op} . Expected OPs: ${OP_LOAD}, ${OP_UNLOAD}`)
+        console.warn(`OP selected no supported: ${message.op} . Expected OPs: ${OPResources.OP_LOAD}, ${OPResources.OP_UNLOAD}, ${OPResources.OP_MOVE}, ${OPResources.OP_BLUR}, ${OPResources.OP_FOCUS}`);
     }
 
     // keeps the channel open
@@ -228,7 +221,7 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
                     const host = config.hostURL || "127.0.0.1";
                     const contextRoot = config.contextRoot || "oplauncher-op";
                     const port = config.httpPort || 7777;
-                    const token = config.personalToken || DEFAULT_APP_TOKEN;
+                    const token = config.personalToken || OPResources.DEFAULT_APP_TOKEN;
                     const backendURL = `http://${host}:${port}/${contextRoot}`;
 
                     if (messageToNative) {
@@ -240,12 +233,12 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
 
                     const requestMsg = JSON.stringify(messageToNative);
                     // Send to OPLauncher
-                    send2port(SELECTED_BACKEND_TP, requestMsg, backendURL, callback, callbackErr);
+                    send2port(OPResources.JSON_BACKEND, requestMsg, backendURL, callback, callbackErr);
                 });
 
                 if (ctrl_interval) clearInterval(ctrl_interval);
             } else {
-                console.warn("OPLauncher backend port is not available yet for (%s := %s). Attempt: %s", messageToNative.op, messageToNative.appletName, try_attempts);
+                console.warn("OPLauncher backend port is not available yet for (%s). Attempt: %s", messageToNative.appletName, try_attempts);
                 try_attempts++;
                 if (try_attempts > MAX_TRIES) {
                     console.error("After %s tries, the remote connection door could not be reached, giving up! Applet: %s := %s", try_attempts, messageToNative.op, messageToNative.appletName);
@@ -269,7 +262,7 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
  * Send the payload to the backend port based on the PROTO send as parameter
  */
 function send2port(proto, requestMsg, backendURL, callback, callbackErr) {
-    if ( proto === JSON_BACKEND ) {
+    if ( proto === OPResources.JSON_BACKEND ) {
         console.info("Sending payload to backend URL:", backendURL);
         fetch(backendURL, {
             method: "POST",
@@ -306,10 +299,26 @@ function send2OPLauncher(messageToNative, callback, callbackErr) {
         console.error("Empty message detected! Aborting...", messageToNative);
         return;
     }
+
+    // We need to generate the payload if set
+    if (OPResources.ENCRYPTED_PAYLOAD) {
+        encryptPayloadWithDES3(messageToNative, commToken || OPResources.DES3_DEF_KEY, OPResources.DEFAULT_MAGICNUM,
+(encpayload) => {
+            console.info("About to send the encoded payload to OPLauncher", encpayload);
+            send2native(encpayload, callback, callbackErr);
+        });
+    }
+    // Payload with no ecryption, simple payload
+    else {
+        send2native(messageToNative, callback, callbackErr);
+    }
+
+}
+function send2native(messageToNative, callback, callbackErr) {
     let jsonMessage = JSON.stringify(messageToNative);
     console.info("Validating Message Before Sending to OPLauncher:", JSON.stringify(messageToNative, null, 2));
 
-    const port = chrome.runtime.connectNative(NATIVE_SERVICE);
+    const port = chrome.runtime.connectNative(OPResources.NATIVE_SERVICE);
 
     console.info("About to send a message to OPLauncher:", messageToNative);
     port.postMessage(messageToNative); // Send applet details and file content to native host
@@ -355,8 +364,8 @@ function checkBackendStatus(hbInterval) {
     chrome.storage.local.get(["httpPort", "hostURL", "personalToken"], function (config) {
         const host = config.hostURL || "127.0.0.1";
         const port = config.httpPort || 7777;
-        const token = config.personalToken || DEFAULT_APP_TOKEN;
-        const backendURL = `http://${host}:${port}/${HB_CTXROOT}`;
+        const token = config.personalToken || OPResources.DEFAULT_APP_TOKEN;
+        const backendURL = `http://${host}:${port}/${OPResources.HB_CTXROOT}`;
 
         console.info("HB status check on:", backendURL);
 
@@ -366,7 +375,7 @@ function checkBackendStatus(hbInterval) {
                 console.info("OPLauncher backend server is now available.");
                 BackendControlReady = true;
                 TriggeredHBControl = false;
-                //chrome.alarms.clear(ALARM_SERVER_HB); // Stop checking once backend is ready
+                //chrome.alarms.clear(OPResources.ALARM_SERVER_HB); // Stop checking once backend is ready
                 clearInterval(hbInterval);
             }
             else {
@@ -385,11 +394,11 @@ function checkBackendStatus(hbInterval) {
 function startOPHBCheck() {
     /*chrome.alarms.onAlarm.addListener((alarm) => {
         console.debug("Received an alarm", alarm);
-        if (alarm.name === ALARM_SERVER_HB) {
+        if (alarm.name === OPResources.ALARM_SERVER_HB) {
             checkBackendStatus();
         }
     });
-    chrome.alarms.create(ALARM_SERVER_HB, { periodInMinutes: (1 / 60) }); // 1min / 60 seconds ~ 1 sec*/
+    chrome.alarms.create(OPResources.ALARM_SERVER_HB, { periodInMinutes: (1 / 60) }); // 1min / 60 seconds ~ 1 sec*/
     /*
      * Creates an Alarm check to see if OPLauncher REST server is active yet or not
      */
@@ -401,3 +410,56 @@ function startOPHBCheck() {
         }, 500 /*every 0.5 sec*/);
     }
 }
+
+/**
+ * Generates a random number from 1000 to 10,000,000
+ * @returns {number}
+ */
+function getRandomNumber() {
+    return Math.floor(Math.random() * (10000000 - 1000 + 1)) + 1000;
+}
+
+/**
+ * Encrypts the payload using the given key passed as parameter
+ * @param jsonData      the JSON data to be encrypted
+ * @param base64Key     the DES3 key encoded in a Base64 string format
+ * @param callback      the callback function
+ * @returns {{payload: string, msgsize: number}}
+ */
+async function encryptPayloadWithDES3(jsonData, base64Key, magicmsk, callback) {
+    const rmaskednum = getRandomNumber() | magicmsk;
+    console.info("Magic number: ", rmaskednum);
+
+    Object.assign(jsonData, {
+        magicToken: rmaskednum
+    });
+
+    // Convert Base64 key to a WordArray (CryptoJS format)
+    const keyBytes = CryptoJS.enc.Base64.parse(base64Key);
+
+    // Converts the JSON payload (remove breaklines for correct size)
+    const jsonString = JSON.stringify(jsonData).replace(/\r?\n|\r/g, "");
+
+    console.info("About to cipher the payload: %s", jsonString);
+    console.info("PAYLOAD size: ", jsonString.length);
+    console.debug("-> PAYLOAD key: ", base64Key);
+
+    // Encrypt using DES3 with ECB mode and PKCS7 padding
+    const encrypted = CryptoJS.TripleDES.encrypt(jsonString, keyBytes, {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.Pkcs7
+    });
+
+    // Convert encrypted bytes to Base64
+    const encryptedBase64 = encrypted.toString();
+    console.info("Encrypted payload: %s", encryptedBase64);
+
+    // Return the formatted message
+    if (callback) {
+        callback({
+            payload: encryptedBase64,
+            msgsize: jsonString.length
+        });
+    }
+}
+

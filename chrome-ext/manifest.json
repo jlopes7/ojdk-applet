@@ -6,8 +6,12 @@
 	"host_permissions": ["<all_urls>"],
 	"content_scripts": [{
 		"matches": ["<all_urls>"],
-		"js": ["appletint.js"],
+		"js": ["resources.js", "appletint.js"],
 		"run_at": "document_start"
+	}],
+	"web_accessible_resources": [{
+		"resources": ["resources.js"],
+		"matches": ["<all_urls>"]
 	}],
 	"background": {
 		"service_worker": "background.js"

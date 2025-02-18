@@ -1,19 +1,19 @@
-const OP_LOAD    = 'load_applet';
-const OP_UNLOAD  = 'unload_applet';
-const OP_COOKIES = 'get_cookies';
-const OP_BLUR    = "blur_applet";
-const OP_FOCUS   = "focus_applet";
-const OP_MOVE    = "move_applet";
+/**
+ * Loads all the script dependencies
+ * @param callback	the function function after all resources are loaded into DOM
+ */
+function loadDeps(callback) {
+	if (typeof window.OPResources !== "undefined") {
+		if (callback) callback();
+	}
+	else {
+		console.error("OPResources is not available after loading resources.js!");
+	}
+}
 
 const LOW_VISIBILITY_ST = "low_visibility";
 
-const PIPE_STDOUT = "pip_stdout";
-const PIPE_REST = "pip_rest";
-const PREFERED_PIPE = PIPE_REST;
-
 const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
-
-const OPLAUNCHER_IFRAME_ID = "oplauncher_applet_iframe";
 
 const registeredAppletList = new Array();
 
@@ -50,132 +50,139 @@ const APPLET_HTML_CONTENT_OPEN = `
  * First it scans for <applet/> tags
  */
 document.addEventListener("DOMContentLoaded", () => {
-	console.info("Looking for Applet entries in the page...");
-	let firstAppletLoaded = true;
-	const applets = document.querySelectorAll("applet");
+	/*
+	 * Dynamically load all the dependent resources before executing
+	 */
+	loadDeps(() => {
+		console.info("Resources loaded successfully:", OPResources);
 
-	applets.forEach((applet) => {
-		console.log("applet", applet);
-		const className = applet.getAttribute("code");
-		const archiveUrl = applet.getAttribute("archive") || "";
-		const codebase = applet.getAttribute("codebase") || "";
-		const appletName = applet.getAttribute("name") || genRandomAppletName(16);
-		const width = applet.getAttribute("width") || 0;
-		const height = applet.getAttribute("height") || 0;
-		// Construct the full base URL
-		const baseUrl = getBasePath(window.location.href);
+		console.info("Looking for Applet entries in the page...");
+		let firstAppletLoaded = true;
+		const applets = document.querySelectorAll("applet");
 
-		console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase, appletName, width, height });
+		applets.forEach((applet) => {
+			console.log("applet", applet);
+			const className = applet.getAttribute("code");
+			const archiveUrl = applet.getAttribute("archive") || "";
+			const codebase = applet.getAttribute("codebase") || "";
+			const appletName = applet.getAttribute("name") || genRandomAppletName(16);
+			const width = applet.getAttribute("width") || 0;
+			const height = applet.getAttribute("height") || 0;
+			// Construct the full base URL
+			const baseUrl = getBasePath(window.location.href);
 
-		// Register the Applet name to the list
-		registeredAppletList.push({
-			appletName: appletName,
-			className: className,
-			archiveUrl: archiveUrl,
-			codebase: codebase,
-			width: width,
-			height: height
-		});
-		console.info ("Found Applet: %s . Number of applets in the registered list: %d", appletName, registeredAppletList.length);
+			console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase, appletName, width, height });
 
-		// Create an iframe replacement for the applet
-		const iframe = document.createElement("iframe");
-		iframe.width = width;
-		iframe.height = height;
-		iframe.style.border = "none";
-		iframe.style.backgroundColor = "white";
-		iframe.id = getAppletIFrameID(frame_count++);
-
-		// Set the iframe content dynamically
-		iframe.srcdoc = APPLET_HTML_CONTENT_OPEN;
-		// Replace the applet with the iframe
-		applet.replaceWith(iframe);
-
-		// Extract applet parameters and format them as "key1=value1;key2=value2"
-		let paramArray = [];
-		applet.querySelectorAll("param").forEach((param) => {
-			const paramName = param.getAttribute("name");
-			const paramValue = param.getAttribute("value");
-			if (paramName && paramValue) {
-				paramArray.push(`${paramName}=${paramValue}`);
-			}
-		});
-		const parametersStr = paramArray.join(";");
-
-		let cookies = []
-		if (chrome.cookies) {
-			cookies = chrome.cookies.getAll({url: window.location.origin});
-		}
-		getCookies(function (message) {
-			let cookieStr = "";
-			if ( message.cookies ) {
-				cookieStr = message.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
-				}
-
-			console.info(`Cookies found: [${cookieStr}]`);
-
-			if (firstAppletLoaded) console.info("First Applet to be loaded:", appletName);
-			else console.info("First applet already loaded, preparing to load the next:", appletName);
-
-			// Ensure message is sent after fetching cookies
-			sendAppletMessage(cookieStr, firstAppletLoaded);
-		});
-
-		/**
-		 * Send the applet message
-		 */
-		function sendAppletMessage(cookieStr, executionTriage) {
-			const position = getAbsoluteScreenPosition(iframe);
-			const requestMsg = {
-				op: OP_LOAD,
+			// Register the Applet name to the list
+			registeredAppletList.push({
+				appletName: appletName,
 				className: className,
 				archiveUrl: archiveUrl,
 				codebase: codebase,
-				appletName: appletName,
-				baseUrl: baseUrl,
 				width: width,
-				height: height,
-				posx: position.x,
-				posy: position.y,
-				parameters: parametersStr,
-				cookies: cookieStr,
-				pipecfn: PREFERED_PIPE,
-				firstload: executionTriage
-			};
+				height: height
+			});
+			console.info ("Found Applet: %s . Number of applets in the registered list: %d", appletName, registeredAppletList.length);
 
-			firstAppletLoaded = false;
-			/// We have to wait a bit for the iframe to be rendered
-			setTimeout(() => {
-				if (Object.keys(requestMsg).length > 0) {
-					console.info("About to send the request to backend port", requestMsg);
+			// Create an iframe replacement for the applet
+			const iframe = document.createElement("iframe");
+			iframe.width = width;
+			iframe.height = height;
+			iframe.style.border = "none";
+			iframe.style.backgroundColor = "white";
+			iframe.id = getAppletIFrameID(frame_count++);
 
-					/**
-					 * ----------------------
-					 *  OP: LOAD THE APPLET
-					 * ----------------------
-					 * --> Send cookies along with applet details to the background script
-					 */
-					chrome.runtime.sendMessage(requestMsg, (resp) => {
-						if (!resp || !resp.response) {
-							console.warn("Received an empty response from the backend", resp);
-							return;
-						}
+			// Set the iframe content dynamically
+			iframe.srcdoc = APPLET_HTML_CONTENT_OPEN;
+			// Replace the applet with the iframe
+			applet.replaceWith(iframe);
 
-						console.log("Applet Response computed:", resp);
-						if (resp.action === OP_LOAD) {
-							iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded!';
-
-							// TODO: Implement
-						}
-					});
+			// Extract applet parameters and format them as "key1=value1;key2=value2"
+			let paramArray = [];
+			applet.querySelectorAll("param").forEach((param) => {
+				const paramName = param.getAttribute("name");
+				const paramValue = param.getAttribute("value");
+				if (paramName && paramValue) {
+					paramArray.push(`${paramName}=${paramValue}`);
 				}
-				else {
-					console.error("Request payload is empty, not sending!");
-				}
-			}, 100); // delay for 100ms to ensure the page is loaded
-		}
+			});
+			const parametersStr = paramArray.join(";");
 
-		// TODO: Additional operations go here!
+			let cookies = []
+			if (chrome.cookies) {
+				cookies = chrome.cookies.getAll({url: window.location.origin});
+			}
+			getCookies(function (message) {
+				let cookieStr = "";
+				if ( message.cookies ) {
+					cookieStr = message.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
+					}
+
+				console.info(`Cookies found: [${cookieStr}]`);
+
+				if (firstAppletLoaded) console.info("First Applet to be loaded:", appletName);
+				else console.info("First applet already loaded, preparing to load the next:", appletName);
+
+				// Ensure message is sent after fetching cookies
+				sendAppletMessage(cookieStr, firstAppletLoaded);
+			});
+
+			/**
+			 * Send the applet message
+			 */
+			function sendAppletMessage(cookieStr, executionTriage) {
+				const position = getAbsoluteScreenPosition(iframe);
+				const requestMsg = {
+					op: OPResources.OP_LOAD,
+					className: className,
+					archiveUrl: archiveUrl,
+					codebase: codebase,
+					appletName: appletName,
+					baseUrl: baseUrl,
+					width: width,
+					height: height,
+					posx: position.x,
+					posy: position.y,
+					parameters: parametersStr,
+					cookies: cookieStr,
+					pipecfn: OPResources.PREFERED_PIPE,
+					firstload: executionTriage
+				};
+
+				firstAppletLoaded = false;
+				/// We have to wait a bit for the iframe to be rendered
+				setTimeout(() => {
+					if (Object.keys(requestMsg).length > 0) {
+						console.info("About to send the request to backend port", requestMsg);
+
+						/**
+						 * ----------------------
+						 *  OP: LOAD THE APPLET
+						 * ----------------------
+						 * --> Send cookies along with applet details to the background script
+						 */
+						chrome.runtime.sendMessage(requestMsg, (resp) => {
+							if (!resp || !resp.response) {
+								console.warn("Received an empty response from the backend", resp);
+								return;
+							}
+
+							console.log("Applet Response computed:", resp);
+							if (resp.action === OPResources.OP_LOAD) {
+								iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded!';
+
+								// TODO: Implement
+							}
+						});
+					}
+					else {
+						console.error("Request payload is empty, not sending!");
+					}
+				}, 100); // delay for 100ms to ensure the page is loaded
+			}
+
+			// TODO: Additional operations go here!
+		});
 	});
 });
 
@@ -185,7 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * @returns {string}	the new ID
  */
 function getAppletIFrameID(idx) {
-	return (OPLAUNCHER_IFRAME_ID.concat("_" + idx));
+	return (OPResources.OPLAUNCHER_IFRAME_ID.concat("_" + idx));
 }
 
 /**
@@ -195,7 +202,7 @@ function getAppletIFrameID(idx) {
 function getCookies(callback) {
 	console.info("Requesting cookies from background script...");
 
-	chrome.runtime.sendMessage({ op: OP_COOKIES, url: window.location.origin }, (response) => {
+	chrome.runtime.sendMessage({ op: OPResources.OP_COOKIES, url: window.location.origin }, (response) => {
 		if (chrome.runtime.lastError) {
 			console.error("rror requesting cookies:", chrome.runtime.lastError.message);
 			callback("{}");
@@ -216,7 +223,7 @@ function sendUnloadMessageToBackgroundPort() {
 	registeredAppletList.forEach(entry => {
 		console.warn("Unloading the Applet from the backend", entry);
 		dispatchToBackground({
-			op: OP_UNLOAD,
+			op: OPResources.OP_UNLOAD,
 			applet_name: entry.appletName,
 		});
 	});
@@ -254,7 +261,7 @@ function sendBlurFocusMessageToBackgroundPort(visible, lowVisibility) {
 		if (visible) {
 			console.info("Processing the focus_OP to OPLauncher for the applet:", entry.appletName);
 			const commMsg = {
-				op: OP_FOCUS,
+				op: OPResources.OP_FOCUS,
 				applet_name: entry.appletName
 			};
 			if (lowVisibility) Object.assign(commMsg, {
@@ -266,7 +273,7 @@ function sendBlurFocusMessageToBackgroundPort(visible, lowVisibility) {
 		else {
 			console.info("Processing the blur_OP to OPLauncher for the applet:", entry.appletName);
 			const commMsg = {
-				op: OP_BLUR,
+				op: OPResources.OP_BLUR,
 				applet_name: entry.appletName
 			};
 			if (lowVisibility) Object.assign(commMsg, {
@@ -303,7 +310,7 @@ function sendUnloadMessageToJSONPort() {
 	console.warn("About to close all active Applet instances...");
 
 	const commMsg = {
-		op: OP_UNLOAD
+		op: OPResources.OP_UNLOAD
 	};
 
 	console.info("Sending unload payload to backend:", commMsg);
@@ -333,7 +340,7 @@ function getAppletElementPosition(element) {
  * Update applet position and send to backend
  */
 function updateAppletPosition() {
-	const iframe = document.getElementById(OPLAUNCHER_IFRAME_ID);
+	const iframe = document.getElementById(OPResources.OPLAUNCHER_IFRAME_ID);
 	if (!iframe) {
 		console.warn("Could not find any Applet render container in the HTML page")
 		return;
@@ -342,7 +349,7 @@ function updateAppletPosition() {
 	const position = getAbsoluteScreenPosition(iframe);
 
 	const message = {
-		op: OP_MOVE,
+		op: OPResources.OP_MOVE,
 		px: position.x,
 		py: position.y
 	};
@@ -382,9 +389,30 @@ function getBasePath(urlString) {
 	return url.origin + url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
 }
 
+/**
+ * Remove all registered event OPs from the client
+ */
+function removeEventListeners() {
+	console.warn("Removing all event listeners due to OPLauncher disconnection.");
+
+	window.removeEventListener("unload", sendUnloadMessageToBackgroundPort);
+	//document.removeEventListener("visibilitychange", handleVisibilityChange);
+	window.removeEventListener("scroll", updateAppletPosition);
+	window.removeEventListener("resize", updateAppletPosition);
+}
+
 /* ==========================================================
             PAGE LEVEL EVENTS FOR THE EXTENSION
    ========================================================== */
+/// Monitor for specific messages comming from the remote port
+chrome.runtime.onMessage.addListener((message) => {
+	console.info("Received a message from the backend port", message);
+	console.info("Action to take", message.action);
+	if (message.action === OPResources.OP_CLEAR_EVT) {
+		removeEventListeners();
+	}
+});
+
 //Trigger cleanup when the page is about to unload - TODO: Currently disabled since it needs to be reviewed
 //window.addEventListener("pagehide", sendUnloadMessageToBackgroundPort);
 window.addEventListener("unload", sendUnloadMessageToBackgroundPort);
