@@ -11,6 +11,8 @@
 #define DES3_BLOCK_SIZE            8 /*DES block size*/
 #endif
 
+#define DEF_MAGIC_NUMBER_MASK      0x22E09
+
 void base64_encode(const byte_t *input, char **b64str);
 returncode_t base64_decode(const char *input, byte_t **output, DWORD *output_len);
 returncode_t generate_des3_key(byte_t **key);
@@ -18,7 +20,6 @@ returncode_t generate_des3_key(byte_t **key);
 returncode_t des3_encrypt(const byte_t *key, const char *plaintext, byte_t **ciphertext, ULONG length);
 returncode_t des3_decrypt(const byte_t *key, const char *b64cypher, byte_t **decrypt_txt);
 
-BOOL check_magicnumber_ratio(const umagicnum_t *givennum);
-BOOL is_sandbox_active(const char* stat);
+BOOL check_magicnumber_ratio(const char *jsonmsg);
 
 #endif //OPLAUNCHER_SECUR_H

@@ -24,6 +24,7 @@
 
 #define INI_SECTION_SECUR_PROP_KEYMAXDAYS  "keymaxdays"
 #define INI_SECTION_SECUR_PROP_SANDBOX     "sandbox"
+#define INI_SECTION_SECUR_PROP_MAGICMASK   "mask"
 
 void get_config_path(char *config_path, size_t size);
 void copy_template_ini(const char *dest_path);

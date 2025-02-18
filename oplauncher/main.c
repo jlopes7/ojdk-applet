@@ -5,8 +5,8 @@
 #include "utils.h"
 #include "oplauncher.h"
 #include "logging.h"
-#include "op_server.h"
 #include "oplauncher_secur.h"
+#include "op_server.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "ui/win_tray_ctrl.h"
@@ -95,15 +95,13 @@ int main(void) {
         read_ini_value(INI_SECTION_SECURITY, INI_SECTION_SECUR_PROP_SANDBOX, sandbox_status, MAX_PATH);
 
         // If sandbox is active, control is higher than normal
-        if ( is_sandbox_active(sandbox_status) ) {
+        if ( IS_VERITAS(sandbox_status) ) {
             char *uncrypted_msg, *cipher_key;
             rc = parse_encrypted_msg_from_chrome(buffer, &uncrypted_msg, &cipher_key);
             if (!_IS_SUCCESS(rc)) {
                 send_jsonerror_message("Could not parse the encrypted message", rc);
             }
             else {
-                send_jsonsuccess_message(cipher_key);
-
                 _MEMZERO(buffer, BUFFER_SIZE);
 #if defined(_WIN32) || defined(_WIN64)
                 strncpy_s(buffer, BUFFER_SIZE, uncrypted_msg, strlen(uncrypted_msg));
@@ -111,6 +109,18 @@ int main(void) {
                 strncpy(buffer, uncrypted_msg, strlen(uncrypted_msg));
 #endif
             }
+
+            // Now finally we need to check the magic num
+            if ( !check_magicnumber_ratio(buffer) ) {
+                send_jsonerror_message("Could not parse the encrypted message", RC_ERR_CHROME_WRONG_PAYLOAD);
+                free(uncrypted_msg);
+                free(cipher_key);
+
+                exit(RC_ERR_CHROME_WRONG_PAYLOAD);
+            }
+
+            // ALL GOOD! We want to be here ;)
+            send_jsonsuccess_message(cipher_key);
 
             free(uncrypted_msg);
             free(cipher_key);
@@ -279,7 +289,7 @@ int main(void) {
             logmsg(LOGGING_NORMAL, "Unloading Applet: %s", class_name);
             End_OpLauncher_Process = TRUE; // finishes the loop process
 
-            returncode_t rc = trigger_applet_operation(opcode, params, 1);
+            rc = trigger_applet_operation(opcode, params, 1);
             if ( !_IS_SUCCESS(rc) ) {
                 logmsg(LOGGING_ERROR, "Could not unload Applet: %s", class_name);
             }

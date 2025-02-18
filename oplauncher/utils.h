@@ -75,6 +75,10 @@
                           (((v) << 8)  & 0x00FF0000) | \
                           (((v) << 24) & 0xFF000000) )
 
+#define IS_VERITAS(X)   strncmp((X), "yes", MAX_PATH) == 0 || strncmp((X), "true", MAX_PATH) == 0 || \
+                        strncmp((X), "y", MAX_PATH) == 0 || strncmp((X), "yep", MAX_PATH) == 0 || \
+                        strncmp((X), "yeah", MAX_PATH) == 0 || strncmp((X), "sure", MAX_PATH) == 0
+
 #ifdef _WIN32
     #define popen _popen
     #define pclose _pclose
@@ -107,6 +111,15 @@ typedef enum {
     OP_MOVE,
     OP_UNKNOWN
 } opcode_t;
+
+#ifndef _WIN32
+typedef unsigned long ULONG;
+typedef ULONG *PULONG;
+typedef unsigned short USHORT;
+typedef USHORT *PUSHORT;
+typedef unsigned char UCHAR;
+typedef UCHAR *PUCHAR;
+#endif
 
 returncode_t send_jsonerror_message(const char* errorMsg, const returncode_t errorCode);
 returncode_t send_jsonsuccess_message(const char* message);

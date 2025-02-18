@@ -53,6 +53,7 @@ returncode_t parse_encrypted_msg_from_chrome(const char *jsonmsg, char **decrypt
 	}
 	else {
 		logmsg(LOGGING_ERROR, "Payload parsing the message missing the element: %s", CHROME_EXT_MSG_PAYLOAD);
+		cJSON_Delete(json);
 		return RC_ERR_CHROME_WRONG_PAYLOAD;
 	}
 
@@ -63,12 +64,14 @@ returncode_t parse_encrypted_msg_from_chrome(const char *jsonmsg, char **decrypt
 	else {
 		logmsg(LOGGING_ERROR, "Payload parsing the message missing the element: %s", CHROME_EXT_MSG_MSGSIZE);
 		free(encrypted_payload);
+		cJSON_Delete(json);
 		return RC_ERR_CHROME_WRONG_PAYLOAD;
 	}
 
 	DWORD key_len = DES3_KEY_SIZE;
 	rc = base64_decode(PTR(b64_cipher_key), &cipher_key, &key_len);
 	if ( !_IS_SUCCESS(rc) ) {
+		cJSON_Delete(json);
 		return rc;
 	}
 
@@ -76,6 +79,7 @@ returncode_t parse_encrypted_msg_from_chrome(const char *jsonmsg, char **decrypt
 	if ( !_IS_SUCCESS(rc) ) {
 		free(cipher_key);
 		free(encrypted_payload);
+		cJSON_Delete(json);
 
 		return rc;
 	}
@@ -84,6 +88,7 @@ returncode_t parse_encrypted_msg_from_chrome(const char *jsonmsg, char **decrypt
 
 	free(cipher_key);
 	free(encrypted_payload);
+	cJSON_Delete(json);
 
 	return EXIT_SUCCESS;
 }

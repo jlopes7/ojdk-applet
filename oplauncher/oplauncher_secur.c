@@ -5,6 +5,9 @@
 #include "logging.h"
 #include "oplauncher_secur.h"
 
+#include "ini_config.h"
+#include "deps/cJSON.h"
+
 #ifdef _WIN32
 #   include <windows.h>
 #   include <bcrypt.h>
@@ -16,10 +19,42 @@
 #   include <openssl/rand.h>
 #endif
 
-const umagicnum_t MAGIC_NUMBER = 142857l;
+BOOL check_magicnumber_ratio(const char *jsonmsg) {
+    cJSON   *json, *json_magicnum;
+    umagicnum_t magicnum, default_magicnum;
+    char magicnum_str[INT_MAX_LEN +1];
 
-BOOL check_magicnumber_ratio(const umagicnum_t *givennum) {
-    return ( PTR(givennum) % MAGIC_NUMBER ) == 0;
+    // Parse the JSON string
+    json = cJSON_Parse(jsonmsg);
+    if (json == NULL) {
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            logmsg(LOGGING_ERROR, "JSON Parse Error: %s", error_ptr);
+        }
+        return RC_ERR_COULDNOT_PARSEJSON;
+    }
+
+    json_magicnum = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_MAGICTKN);
+    if (cJSON_IsNumber(json_magicnum)) {
+        magicnum = json_magicnum->valueint;
+    }
+    else {
+        logmsg(LOGGING_ERROR, "Payload parsing the message missing the element: %s", CHROME_EXT_MSG_MAGICTKN);
+        cJSON_Delete(json);
+        return FALSE;
+    }
+    logmsg(LOGGING_NORMAL, "About to check the magic: %ld", magicnum);
+
+    cJSON_Delete(json);
+
+    _MEMZERO(magicnum_str, INT_MAX_LEN +1);
+    read_ini_value(INI_SECTION_SECURITY, INI_SECTION_SECUR_PROP_MAGICMASK, magicnum_str, INT_MAX_LEN);
+    default_magicnum = atoll(magicnum_str);
+
+    /*
+     * Simple and fast alg. check using the magic number as a mask
+     */
+    return ( magicnum & default_magicnum ) == default_magicnum;
 }
 
 #ifdef _DES3_CUSTOM_IMPL
@@ -36,29 +71,38 @@ void simple_des_decrypt(byte_t block[DES3_BLOCK_SIZE], const byte_t key[8]) {
 #endif
 
 returncode_t des3_encrypt(const byte_t *key, const char *plaintext, byte_t **ciphertext, ULONG length) {
-#ifdef _DES3_CUSTOM_IMPL
-
-#else
     PTR(ciphertext) = malloc(length +1);
     _MEMZERO(PTR(ciphertext), length + 1);
+
 #ifdef _WIN32
     BCRYPT_ALG_HANDLE hAlgorithm;
     BCRYPT_KEY_HANDLE hKey;
     returncode_t result;
 
-    if ( !_IS_SUCCESS(BCryptOpenAlgorithmProvider(&hAlgorithm, BCRYPT_3DES_ALGORITHM, NULL, 0)) ) {
+    if ( !BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlgorithm, BCRYPT_3DES_ALGORITHM, NULL, 0)) ) {
         logmsg(LOGGING_ERROR, "Failed to open BCryptOpenAlgorithmProvider for DES3 encrypt process");
+        free(ciphertext);
         return RC_ERR_SECUR_FAILED_DES3_ENCRYPT;
     }
-    if ( !_IS_SUCCESS(BCryptGenerateSymmetricKey(hAlgorithm, &hKey, NULL, 0, (PUCHAR)key, DES3_KEY_SIZE, 0)) ) {
+    if (!BCRYPT_SUCCESS(BCryptSetProperty(hAlgorithm, BCRYPT_CHAINING_MODE, BCRYPT_CHAIN_MODE_ECB, sizeof(BCRYPT_CHAIN_MODE_ECB), 0))) {
+        logmsg(LOGGING_ERROR, "Failed to set chaining mode to ECB.");
+        BCryptCloseAlgorithmProvider(hAlgorithm, 0);
+        free(ciphertext);
+        return RC_ERR_SECUR_FAILED_DES3_DECRYPT;
+    }
+    if ( !BCRYPT_SUCCESS(BCryptGenerateSymmetricKey(hAlgorithm, &hKey, NULL, 0, (PUCHAR)key, DES3_KEY_SIZE, 0)) ) {
         logmsg(LOGGING_ERROR, "Failed to generate the symmetric key for DES3 encrypt process");
         BCryptCloseAlgorithmProvider(hAlgorithm, 0);
         return RC_ERR_SECUR_FAILED_DES3_ENCRYPT;
     }
+
     result = BCryptEncrypt(hKey, (PUCHAR)plaintext, length, NULL, NULL, 0, PTR(ciphertext), length, &length, 0);
+
     BCryptDestroyKey(hKey);
     BCryptCloseAlgorithmProvider(hAlgorithm, 0);
-    return _IS_SUCCESS(result) ? EXIT_SUCCESS : RC_ERR_SECUR_FAILED_DES3_ENCRYPT;
+    free(ciphertext);
+
+    return BCRYPT_SUCCESS(result) ? EXIT_SUCCESS : RC_ERR_SECUR_FAILED_DES3_ENCRYPT;
 #else
     DES_cblock key1, key2, key3;
     memcpy(key1, key, 8);
@@ -71,10 +115,29 @@ returncode_t des3_encrypt(const byte_t *key, const char *plaintext, byte_t **cip
     for (int i = 0; i < length; i += 8) {
         DES_ecb3_encrypt((DES_cblock *)(PTR(ciphertext) + i), (DES_cblock *)(PTR(ciphertext) + i), &ks1, &ks2, &ks3, DES_ENCRYPT);
     }
-#endif
-#endif // _DES3_CUSTOM_IMPL
+
+    free(ciphertext);
+
     return EXIT_SUCCESS;
+#endif
 }
+
+#ifdef _DEBUG
+void debug_print_bytes(const char *debug_msg, byte_t bytes[], const ULONG length) {
+    char debughexpayload[BUFFER_SIZE];
+    char debughexkey[BUFFER_SIZE];
+
+    _MEMZERO(debughexpayload, BUFFER_SIZE);
+    _MEMZERO(debughexkey, BUFFER_SIZE);
+    for (int i = 0; i < length; i++) {
+        char _tmp[4];
+        _MEMZERO(_tmp, 4);
+        snprintf(_tmp, MAX_PATH, "%02x ", bytes[i]);
+        strcat(debughexpayload, _tmp);
+    }
+    logmsg(LOGGING_NORMAL, "%s: %s", debug_msg, debughexpayload);
+}
+#endif //_DEBUG
 
 returncode_t des3_decrypt(const byte_t *key, const char *b64cypher, byte_t **decrypt_txt) {
     byte_t *cipher_txt;
@@ -110,6 +173,7 @@ returncode_t des3_decrypt(const byte_t *key, const char *b64cypher, byte_t **dec
         free(cipher_txt);
         return RC_ERR_SECUR_FAILED_DES3_DECRYPT;
     }
+
     if (!BCRYPT_SUCCESS(BCryptSetProperty(hAlgorithm, BCRYPT_CHAINING_MODE, BCRYPT_CHAIN_MODE_ECB, sizeof(BCRYPT_CHAIN_MODE_ECB), 0))) {
         logmsg(LOGGING_ERROR, "Failed to set chaining mode to ECB.");
         BCryptCloseAlgorithmProvider(hAlgorithm, 0);
@@ -128,26 +192,8 @@ returncode_t des3_decrypt(const byte_t *key, const char *b64cypher, byte_t **dec
     BCryptDecrypt(hKey, cipher_txt, encrypt_len, NULL, NULL, 0, NULL, 0, &decrypt_len, 0);
 
 #ifdef _DEBUG
-    char debughexpayload[BUFFER_SIZE];
-    char debughexkey[BUFFER_SIZE];
-
-    _MEMZERO(debughexpayload, BUFFER_SIZE);
-    _MEMZERO(debughexkey, BUFFER_SIZE);
-    for (int i = 0; i < decrypt_len; i++) {
-        char _tmp[4];
-        _MEMZERO(_tmp, 4);
-        snprintf(_tmp, MAX_PATH, "%02x ", cipher_txt[i]);
-        strcat(debughexpayload, _tmp);
-    }
-    logmsg(LOGGING_NORMAL, "Encrypted bytes for the payload: %s", debughexpayload);
-
-    for (size_t i = 0; i < DES3_KEY_SIZE; i++) {
-        char _tmp[4];
-        _MEMZERO(_tmp, 4);
-        snprintf(_tmp, MAX_PATH, "%02x ", key[i]);
-        strcat(debughexkey, _tmp);
-    }
-    logmsg(LOGGING_NORMAL, "Encrypted bytes for the key: %s", debughexkey);
+    debug_print_bytes("Encrypted bytes from the payload", cipher_txt, decrypt_len);
+    debug_print_bytes("Encrypted bytes from the key", key, DES3_KEY_SIZE);
 #endif
 
     PTR(decrypt_txt) = malloc(decrypt_len +1);
@@ -207,11 +253,6 @@ returncode_t des3_decrypt(const byte_t *key, const char *b64cypher, byte_t **dec
 #endif
 #endif // _DES3_CUSTOM_IMPL
     return EXIT_SUCCESS;
-}
-
-BOOL is_sandbox_active(const char* stat) {
-    return strncmp(stat, "yes", MAX_PATH) == 0 || strncmp(stat, "true", MAX_PATH) == 0
-            || strncmp(stat, "y", MAX_PATH) == 0 || strncmp(stat, "yep", MAX_PATH) == 0;
 }
 
 /**

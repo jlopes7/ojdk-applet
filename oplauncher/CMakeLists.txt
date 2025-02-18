@@ -5,8 +5,8 @@ else()
     project(oplauncher LANGUAGES C)
 endif()
 
-# Debug purpose, comment out for release
-add_definitions(-D_DEBUG_)
+# Debug specific functions. Only use to troubleshoot OPLauncher
+#add_definitions(-D_DEBUG_)
 
 # Set the C standard
 set(CMAKE_C_STANDARD 11)
