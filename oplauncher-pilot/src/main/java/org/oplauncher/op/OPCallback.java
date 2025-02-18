@@ -1,6 +1,6 @@
 package org.oplauncher.op;
 
 @FunctionalInterface
-public interface OPCallback<T> {
-    void call(OPMessage message);
+public interface OPCallback<P extends OPPayload> {
+    void call(OPMessage<P> message);
 }

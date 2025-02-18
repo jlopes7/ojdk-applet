@@ -3,8 +3,6 @@ package org.oplauncher.op;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.protocol.HttpAsyncExchange;
-import org.apache.http.nio.protocol.HttpAsyncRequestConsumer;
-import org.apache.http.nio.protocol.HttpAsyncRequestHandler;
 import org.apache.http.protocol.HttpContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,10 +14,10 @@ import static org.oplauncher.ErrorCode.FAILED_TO_LOAD_RESOURCE;
 import static org.oplauncher.IConstants.NO_PROP_CODE;
 import static org.oplauncher.IConstants.SUCCESS_RESPONSE;
 
-public class OPHttpHBHandler extends OPHandler {
+public class OPHttpHBHandler<P extends OPPayload> extends OPHandler<P> {
     static private final Logger LOGGER = LogManager.getLogger(OPHttpHBHandler.class);
 
-    public OPHttpHBHandler(HttpOPServer opserv) {
+    public OPHttpHBHandler(HttpOPServer<P> opserv) {
         super(opserv);
     }
 
@@ -35,7 +33,7 @@ public class OPHttpHBHandler extends OPHandler {
         catch (Exception e) {
             LOGGER.error("Failed while processing the request from Chrome", e);
 
-            OPMessage message = new OPMessage(new OPPayload());
+            OPMessage<OPPlainPayload> message = new OPMessage<>(new OPPlainPayload());
             message.setError().setErrorDetails(e);
             if ( e instanceof OPLauncherException) {
                 message.setErrorCode(((OPLauncherException) e).getErrorCode());
@@ -45,7 +43,7 @@ public class OPHttpHBHandler extends OPHandler {
             }
 
             ///  trigger the execution of all registered observables for error requests
-            getOpServerRef().triggerErrorCallbacks(message);
+            getOpServerRef().triggerErrorCallbacks((OPMessage<P>) message);
 
             OPResponse response = new OPResponse(e.getMessage(), false, message.getErrorType().code());
             // Send the error response back to chrome

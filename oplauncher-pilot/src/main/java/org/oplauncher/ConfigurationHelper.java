@@ -1,5 +1,8 @@
 package org.oplauncher;
 
+import com.sun.jna.platform.win32.Advapi32Util;
+import com.sun.jna.platform.win32.WinReg;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -15,6 +18,7 @@ import org.oplauncher.op.OPServerType;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.runtime.AppletContextType;
 import org.oplauncher.runtime.JavaConsoleBuilder;
+import org.oplauncher.runtime.secur.OPCipherType;
 
 import javax.swing.*;
 import java.io.File;
@@ -27,8 +31,7 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.oplauncher.ErrorCode.NO_VALID_APP_TOKEN;
-import static org.oplauncher.ErrorCode.NO_VALID_CHROME_TOKEN_FOUND;
+import static org.oplauncher.ErrorCode.*;
 import static org.oplauncher.IConstants.*;
 
 public class ConfigurationHelper {
@@ -105,6 +108,18 @@ public class ConfigurationHelper {
         }
     }
 
+    static private boolean isFlagActive(String condition) {
+        return condition != null && !condition.isEmpty() && (
+                condition.trim().equalsIgnoreCase("true") ||
+                condition.trim().equalsIgnoreCase("yes")  ||
+                condition.trim().equalsIgnoreCase("yep")  ||
+                condition.trim().equalsIgnoreCase("on")  ||
+                condition.trim().equalsIgnoreCase("y")    ||
+                condition.trim().equalsIgnoreCase("hell yeah") ||
+                condition.trim().equalsIgnoreCase("yeah")
+        );
+    }
+
     static private void xmlIntializeLog() throws OPLauncherException {
         String logPattern = ConfigurationHelper.getLogFileRotatePattern();
         File logFile = ConfigurationHelper.getLogConfigurationFile();
@@ -161,20 +176,61 @@ public class ConfigurationHelper {
         return JavaConsoleBuilder.ConsoleType.parse(configtype);
     }
 
+    static public final OPCipherType getDefaultCipherType() {
+        if ( configPropAvailable(CONFIG_PROP_SECUR_ALGORITHM) ) {
+            return OPCipherType.from(CONFIG.getProperty(CONFIG_PROP_SECUR_ALGORITHM, "des3"));
+        }
+        else return OPCipherType.DES3 /*Default is DES3*/;
+    }
+
+    static public final String getCipherKey() {
+        // Windows system, lets see if the cypher exists in the registry
+        if (isRunningOnWindows()) {
+            LOGGER.info("Running on Windows, retrieving the cipher key from the Windows Registry: HKLM:\\{}\\{}", WINREG_OPLAUNCHER_KEY, WINREG_OPLAUNCHER_KEYVAL);
+
+            String cipherKey = Advapi32Util.registryGetStringValue(WinReg.HKEY_LOCAL_MACHINE, WINREG_OPLAUNCHER_KEY, WINREG_OPLAUNCHER_KEYVAL);
+            if (cipherKey != null) {
+                LOGGER.info("The cipher key was found and retrieved from the Windows Registry: {}", cipherKey);
+                return cipherKey;
+            }
+        }
+
+        if (configPropAvailable(CONFIG_PROP_SECUR_ENCKEY)) {
+            return CONFIG.getProperty(CONFIG_PROP_SECUR_ENCKEY);
+        }
+        else {
+            throw new OPLauncherException("No default encryption key found", ERROR_SECURITY_ERROR);
+        }
+    }
+
+    static public final boolean isRunningOnWindows() {
+        String osName = System.getProperty("os.name").toLowerCase();
+
+        return osName.contains("win");
+    }
+
+    static public final long getMagicNumberMask() {
+        return Long.decode(CONFIG.getProperty(CONFIG_PROP_SECUR_MASK, "0x22E09"));
+    }
+
     static public final boolean isCacheActive() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_CACHE_ACTIVEFLAG, "true").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_CACHE_ACTIVEFLAG, "true").trim());
     }
 
     static public final boolean isWindowCloseActive() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_CLOSEWINDOW, "true").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_APPLET_CLOSEWINDOW, "true").trim());
     }
 
     static public final boolean isStatusBarActive() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_STATUSBAR, "true").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_APPLET_STATUSBAR, "true").trim());
     }
 
     static public final boolean trackBrowserWindowPosition() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_TRACKWINPOS, "false").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_APPLET_TRACKWINPOS, "false").trim());
+    }
+
+    static public final boolean isSecurePayloadActive() {
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_SECUR_ACTIVE, "true").trim());
     }
 
     static public final boolean isJavaConsoleActive() {
@@ -184,7 +240,7 @@ public class ConfigurationHelper {
     }
 
     static public final boolean isOPServerAppTokenActive() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONCIG_PROP_OP_SERVER_APPTKN_ACTIVE, "true").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_OP_SERVER_APPTKN_ACTIVE, "true").trim());
     }
 
     static private boolean configPropAvailable(String prop) {
@@ -282,7 +338,7 @@ public class ConfigurationHelper {
     }
 
     static public final boolean isLoggingActive() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_LOGACTIVE, "true").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_LOGACTIVE, "true").trim());
     }
     static public final File getLogConfigurationFile() {
         File logFile;
@@ -323,10 +379,10 @@ public class ConfigurationHelper {
     }
 
     static public final boolean isFrameAlwaysOnTop() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_ALWAYSONTOP, "false").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_APPLET_ALWAYSONTOP, "false").trim());
     }
     static public final boolean isFrameResizable() {
-        return Boolean.parseBoolean(CONFIG.getProperty(CONFIG_PROP_APPLET_RESIZEFLAG, "true").trim());
+        return isFlagActive(CONFIG.getProperty(CONFIG_PROP_APPLET_RESIZEFLAG, "true").trim());
     }
 
     static public final AppletContextType getAppletContextType() {

@@ -20,10 +20,10 @@ import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 import static org.oplauncher.ErrorCode.NO_VALID_CHROME_TOKEN_FOUND;
 import static org.oplauncher.IConstants.HTTP_HEADER_CHROMEEXT_TKN;
 
-public abstract class OPHandler implements HttpAsyncRequestHandler<HttpRequest> {
+public abstract class OPHandler<P extends OPPayload> implements HttpAsyncRequestHandler<HttpRequest> {
     static private final Logger LOGGER = LogManager.getLogger(OPHandler.class);
 
-    public OPHandler(HttpOPServer opserv) {
+    public OPHandler(HttpOPServer<P> opserv) {
         _opserver = opserv;
         _objectMapper = new ObjectMapper();
     }
@@ -101,7 +101,7 @@ public abstract class OPHandler implements HttpAsyncRequestHandler<HttpRequest> 
         return new BasicAsyncRequestConsumer();
     }
 
-    protected HttpOPServer getOpServerRef() {
+    protected HttpOPServer<P> getOpServerRef() {
         return _opserver;
     }
 
@@ -110,6 +110,6 @@ public abstract class OPHandler implements HttpAsyncRequestHandler<HttpRequest> 
     }
 
     // class properties
-    private HttpOPServer _opserver;
+    private HttpOPServer<P> _opserver;
     private ObjectMapper _objectMapper;
 }

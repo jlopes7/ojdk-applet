@@ -2,11 +2,9 @@ package org.oplauncher.op;
 
 import org.oplauncher.ErrorCode;
 
-import javax.lang.model.type.ErrorType;
+public class OPMessage<P extends OPPayload> {
 
-public class OPMessage {
-
-    protected OPMessage(OPPayload payload) {
+    public OPMessage(P payload) {
         _payload = payload;
     }
 
@@ -23,7 +21,7 @@ public class OPMessage {
         return this;
     }
 
-    public OPPayload getPayload() {
+    public P getPayload() {
         return _payload;
     }
 
@@ -40,7 +38,7 @@ public class OPMessage {
     }
 
     // class properties
-    private OPPayload _payload;
+    private P _payload;
     private boolean _haveError;
     private Exception _error;
     private ErrorCode _errorCode;

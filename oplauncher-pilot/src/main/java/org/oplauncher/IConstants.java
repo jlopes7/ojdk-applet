@@ -29,6 +29,9 @@ public interface IConstants {
     static public final String DEFAULT_HB_CTXROOT = "oplauncher-hb";
     static public final String HTTP_HEADER_CHROMEEXT_TKN = "X-Chrome-Extension-Tkn";
 
+    static public final String WINREG_OPLAUNCHER_KEY = "SOFTWARE\\OPlauncher";
+    static public final String WINREG_OPLAUNCHER_KEYVAL = "IniToken";
+
     static public final String CONFIG_FILENAME = "config.properties";
     static public final String CONFIG_LOG_FILENAME = "log4j2.xml";
     static public final String CONFIG_JAVACONSOLE_TEXT = "CONSOLE_TEXT";
@@ -78,7 +81,11 @@ public interface IConstants {
     static public final String CONFIG_PROP_OP_SERVER_CHROME_TOKEN = "oplauncher.runtime.opserver.chrome.token";
     static public final String CONFIG_PROP_OP_SERVER_CTXROOT = "oplauncher.runtime.opserver.ctxroot";
     static public final String CONFIG_PROP_OP_SERVER_APPTKN = "oplauncher.runtime.opserver.apptkn";
-    static public final String CONCIG_PROP_OP_SERVER_APPTKN_ACTIVE = "oplauncher.runtime.opserver.apptkn.active";
+    static public final String CONFIG_PROP_OP_SERVER_APPTKN_ACTIVE = "oplauncher.runtime.opserver.apptkn.active";
+    static public final String CONFIG_PROP_SECUR_ALGORITHM = "oplauncher.runtime.secur.alg";
+    static public final String CONFIG_PROP_SECUR_MASK = "oplauncher.runtime.secur.mask";
+    static public final String CONFIG_PROP_SECUR_ACTIVE = "oplauncher.runtime.secur.active";
+    static public final String CONFIG_PROP_SECUR_ENCKEY = "oplauncher.runtime.secur.key";
 
     static public final String APPLETPARAM_WIDTH = "width";
     static public final String APPLETPARAM_HEIGHT = "height";

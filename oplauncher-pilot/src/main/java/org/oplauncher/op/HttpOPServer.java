@@ -12,7 +12,6 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -21,7 +20,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.oplauncher.ErrorCode.ERROR_LISTENING_OPSERVER;
 import static org.oplauncher.IConstants.*;
 
-public class HttpOPServer extends OPServer {
+public class HttpOPServer<P extends OPPayload> extends OPServer<P> {
     static private final Lock LOCK = new ReentrantLock();
     static private final Logger LOGGER = LogManager.getLogger(HttpOPServer.class);
     private final AtomicBoolean SERVER_RUNNING_CONTROL = new AtomicBoolean(false);
@@ -29,11 +28,11 @@ public class HttpOPServer extends OPServer {
     protected HttpOPServer(String host, int port) {
         super(host, port);
 
-        _successCallbacks = Collections.synchronizedList(new ArrayList<OPCallback>());
-        _errorCallbacks   = Collections.synchronizedList(new ArrayList<OPCallback>());
+        _successCallbacks = Collections.synchronizedList(new ArrayList<>());
+        _errorCallbacks   = Collections.synchronizedList(new ArrayList<>());
     }
 
-    public OPServer startOPServer() throws OPLauncherException {
+    public OPServer<P> startOPServer() throws OPLauncherException {
         LOCK.lock();
         try {
             String ctxroot = String.format("/%s", ConfigurationHelper.getOPServerContextRoot());
@@ -58,8 +57,8 @@ public class HttpOPServer extends OPServer {
                         .setListenerPort(getPort())
                         .setListenerPort(getPort())
                         .setLocalAddress(InetAddress.getByName(getHost()))
-                        .registerHandler(ctxroot, new OPHttpHandler(this))
-                        .registerHandler(hbroot, new OPHttpHBHandler(this))
+                        .registerHandler(ctxroot, new OPHttpHandler<>(this))
+                        .registerHandler(hbroot, new OPHttpHBHandler<>(this))
                         .setIOReactorConfig(reactorConfig)
                     .create();
             // Start the server
@@ -82,7 +81,7 @@ public class HttpOPServer extends OPServer {
     }
 
     @Override
-    public OPServer stopOPServer() throws OPLauncherException {
+    public OPServer<P> stopOPServer() throws OPLauncherException {
         LOGGER.warn("Stopping the OP server listening on {}:{}", getHost(), getPort());
         if (getServer() != null) {
             getServer().shutdown(DEFAULT_CONNECTION_SETSOTIMEOUT_SEC, MILLISECONDS); // Graceful shutdown with a 5-second timeout
@@ -98,17 +97,17 @@ public class HttpOPServer extends OPServer {
         return SERVER_RUNNING_CONTROL.get();
     }
 
-    protected HttpOPServer triggerSuccessCallbacks(OPMessage message) {
+    protected HttpOPServer<P> triggerSuccessCallbacks(OPMessage<P> message) {
         _successCallbacks.forEach(callback -> callback.call(message));
         return this;
     }
-    protected HttpOPServer triggerErrorCallbacks(OPMessage message) {
+    protected HttpOPServer<P> triggerErrorCallbacks(OPMessage<P> message) {
         _errorCallbacks.stream().parallel().forEach(callback -> callback.call(message));
         return this;
     }
 
     @Override
-    public OPServer registerSuccessCallback(OPCallback callback) {
+    public OPServer<P> registerSuccessCallback(OPCallback<P> callback) {
         LOCK.lock();
         try {
             if (callback != null) {
@@ -122,7 +121,7 @@ public class HttpOPServer extends OPServer {
     }
 
     @Override
-    public OPServer registerFailureCallback(OPCallback callback) {
+    public OPServer<P> registerFailureCallback(OPCallback<P> callback) {
         LOCK.lock();
         try {
             if (callback != null) {
@@ -142,6 +141,6 @@ public class HttpOPServer extends OPServer {
     // class properties
     private HttpServer _server;
 
-    private List<OPCallback> _successCallbacks;
-    private List<OPCallback> _errorCallbacks;
+    private List<OPCallback<P>> _successCallbacks;
+    private List<OPCallback<P>> _errorCallbacks;
 }
