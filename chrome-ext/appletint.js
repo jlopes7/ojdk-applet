@@ -407,7 +407,6 @@ function removeEventListeners() {
 /// Monitor for specific messages comming from the remote port
 chrome.runtime.onMessage.addListener((message) => {
 	console.info("Received a message from the backend port", message);
-	console.info("Action to take", message.action);
 	if (message.action === OPResources.OP_CLEAR_EVT) {
 		removeEventListeners();
 	}
