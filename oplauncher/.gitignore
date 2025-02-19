@@ -3,3 +3,15 @@
 /build/
 /CMakeFiles/
 CMakeCache.txt
+build.ninja
+cmake_install.cmake
+/deps/CMakeFiles/
+/deps/CTestTestfile.cmake
+/deps/cJSONConfig.cmake
+/deps/cJSONConfigVersion.cmake
+/deps/cmake_install.cmake
+/deps/fuzzing/CTestTestfile.cmake
+/deps/fuzzing/cmake_install.cmake
+/deps/libcjson.pc
+/deps/tests/CTestTestfile.cmake
+/deps/tests/cmake_install.cmake
