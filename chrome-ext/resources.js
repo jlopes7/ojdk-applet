@@ -16,6 +16,13 @@ let OPResources = {
     FETCH_REMOTEAPPLET: false,
     DEBUG: false,
 
+    CHROME_PROP_HTTPPORT: "httpPort",
+    CHROME_PROP_HOSTURL: "hostURL",
+    CHROME_PROP_CTXROOT: "contextRoot",
+    CHROME_PROP_APPTKN: "personalToken",
+    CHROME_PROP_CIPHACT: "msgCipherActive",
+    CHROME_PROP_CIPHERKEY: "cipherKey",
+
     JSON_BACKEND: "json",
     WS2_BACKEND: "websocket",
     SELECTED_BACKEND_TP: "json",

@@ -217,23 +217,41 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
         if (messageToNative.op) { // don't run on undefined Intervals ... JS bug
             if (BackendControlReady) {
                 console.info("OPLauncher backend port is ready! Sending request...");
-                chrome.storage.local.get(["httpPort", "hostURL", "contextRoot", "personalToken"], function (config) {
+                chrome.storage.local.get([OPResources.CHROME_PROP_HTTPPORT,
+                                          OPResources.CHROME_PROP_HOSTURL,
+                                          OPResources.CHROME_PROP_CTXROOT,
+                                          OPResources.CHROME_PROP_APPTKN,
+                                          OPResources.CHROME_PROP_CIPHERKEY,
+                                          OPResources.CHROME_PROP_CIPHACT], function (config) {
                     const host = config.hostURL || "127.0.0.1";
                     const contextRoot = config.contextRoot || "oplauncher-op";
                     const port = config.httpPort || 7777;
                     const token = config.personalToken || OPResources.DEFAULT_APP_TOKEN;
                     const backendURL = `http://${host}:${port}/${contextRoot}`;
+                    const cipherKey = config.cipherKey;
 
                     if (messageToNative) {
                         Object.assign(messageToNative, {
                             _tkn_: token
                         });
                     }
-                    console.info("Received unload message from content script. Sending to backend...", messageToNative);
 
-                    const requestMsg = JSON.stringify(messageToNative);
-                    // Send to OPLauncher
-                    send2port(OPResources.JSON_BACKEND, requestMsg, backendURL, callback, callbackErr);
+                    if ( config.msgCipherActive ) {
+                        encryptPayloadWithDES3(messageToNative, commToken || config.cipherKey || OPResources.DES3_DEF_KEY, OPResources.DEFAULT_MAGICNUM,
+                            (encpayload) => {
+
+                            console.info("Payload was encrypted and it's ready to be sent to OPLauncher", encpayload);
+                            const requestMsg = JSON.stringify(encpayload);
+                            // Send to OPLauncher
+                            send2port(OPResources.JSON_BACKEND, requestMsg, backendURL, callback, callbackErr);
+                        }, true);
+                    }
+                    else {
+                        const requestMsg = JSON.stringify(messageToNative);
+                        console.info("Received unload message from content script. Sending to backend...", messageToNative);
+                        // Send to OPLauncher
+                        send2port(OPResources.JSON_BACKEND, requestMsg, backendURL, callback, callbackErr);
+                    }
                 });
 
                 if (ctrl_interval) clearInterval(ctrl_interval);
@@ -300,18 +318,21 @@ function send2OPLauncher(messageToNative, callback, callbackErr) {
         return;
     }
 
-    // We need to generate the payload if set
-    if (OPResources.ENCRYPTED_PAYLOAD) {
-        encryptPayloadWithDES3(messageToNative, commToken || OPResources.DES3_DEF_KEY, OPResources.DEFAULT_MAGICNUM,
-(encpayload) => {
-            console.info("About to send the encoded payload to OPLauncher", encpayload);
-            send2native(encpayload, callback, callbackErr);
-        });
-    }
-    // Payload with no ecryption, simple payload
-    else {
-        send2native(messageToNative, callback, callbackErr);
-    }
+    chrome.storage.local.get([OPResources.CHROME_PROP_CIPHERKEY,
+                              OPResources.CHROME_PROP_CIPHACT], function (config) {
+        // We need to generate the payload if set
+        if (config.msgCipherActive) {
+            encryptPayloadWithDES3(messageToNative, commToken || config.cipherKey || OPResources.DES3_DEF_KEY, OPResources.DEFAULT_MAGICNUM,
+                (encpayload) => {
+                    console.info("About to send the encoded payload to OPLauncher", encpayload);
+                    send2native(encpayload, callback, callbackErr);
+            }, false);
+        }
+        // Payload with no ecryption, simple payload
+        else {
+            send2native(messageToNative, callback, callbackErr);
+        }
+    });
 
 }
 function send2native(messageToNative, callback, callbackErr) {
@@ -361,7 +382,9 @@ function checkBackendStatus(hbInterval) {
         return;
     } // Skip check if already ready
 
-    chrome.storage.local.get(["httpPort", "hostURL", "personalToken"], function (config) {
+    chrome.storage.local.get([OPResources.CHROME_PROP_HTTPPORT,
+                              OPResources.CHROME_PROP_HOSTURL,
+                              OPResources.CHROME_PROP_APPTKN], function (config) {
         const host = config.hostURL || "127.0.0.1";
         const port = config.httpPort || 7777;
         const token = config.personalToken || OPResources.DEFAULT_APP_TOKEN;
@@ -426,13 +449,20 @@ function getRandomNumber() {
  * @param callback      the callback function
  * @returns {{payload: string, msgsize: number}}
  */
-async function encryptPayloadWithDES3(jsonData, base64Key, magicmsk, callback) {
+async function encryptPayloadWithDES3(jsonData, base64Key, magicmsk, callback, compact) {
     const rmaskednum = getRandomNumber() | magicmsk;
     console.info("Magic number: ", rmaskednum);
 
-    Object.assign(jsonData, {
-        magicToken: rmaskednum
-    });
+    if (compact) {
+        Object.assign(jsonData, {
+            mt: rmaskednum
+        });
+    }
+    else {
+        Object.assign(jsonData, {
+            magicToken: rmaskednum
+        });
+    }
 
     // Convert Base64 key to a WordArray (CryptoJS format)
     const keyBytes = CryptoJS.enc.Base64.parse(base64Key);
@@ -456,10 +486,18 @@ async function encryptPayloadWithDES3(jsonData, base64Key, magicmsk, callback) {
 
     // Return the formatted message
     if (callback) {
-        callback({
-            payload: encryptedBase64,
-            msgsize: jsonString.length
-        });
+        if (compact) {
+            callback({
+                p: encryptedBase64,
+                msz: jsonString.length
+            });
+        }
+        else {
+            callback({
+                payload: encryptedBase64,
+                msgsize: jsonString.length
+            });
+        }
     }
 }
 
