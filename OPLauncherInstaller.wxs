@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <!-- Define Preprocessor Variables -->
+    <?define OP_BASEDIR="oplauncher"?>
+    <?define OP_BASEDIR_PILOT="oplauncher-pilot"?>
+    <?define OP_BINARIES_DIR="$(var.OP_BASEDIR)\cmake-build-debug"?>
+
+    <Product Id="*" Name="OPLauncher" Language="1033" Version="1.0.0.0" Manufacturer="Azul Systems, Inc." UpgradeCode="c84fec78-b643-4cd3-b955-fac2b417e6ad">
+        <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+
+        <Media Id="1" Cabinet="OPLauncher.cab" EmbedCab="yes" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLDIR" Name="OPLauncher">
+                    <Component Id="MainExecutable" Guid="cc1371ff-60cb-4af2-9d72-d6d0e2b57ab4">
+                        <File Id="OPLauncherEXE" Name="oplauncher.exe" Source="$(var.OP_BINARIES_DIR)\oplauncher.exe" KeyPath="yes"/>
+                    </Component>
+                </Directory>
+            </Directory>
+
+            <!-- Corrected User Profile Directory Mapping -->
+            <Directory Id="PersonalFolder">
+                <Directory Id="UserConfigDir" Name=".oplauncher">
+                    <Component Id="ConfigFiles" Guid="be05e58f-e4ee-4cfa-93d6-ca86e55b2da7">
+                        <CreateFolder KeyPath="yes"/> <!-- Now the directory itself is the key path -->
+                        <File Id="IniFile" Name="oplauncher.exe.ini" Source="$(var.OP_BASEDIR)\config\oplauncher.exe.ini"/>
+                        <File Id="PropertiesFile" Name="config.properties" Source="$(var.OP_BASEDIR_PILOT)\src\main\resources\config.properties"/>
+                    </Component>
+                </Directory>
+            </Directory>
+        </Directory>
+
+        <Feature Id="MainFeature" Title="OPLauncher" Level="1">
+            <ComponentRef Id="MainExecutable"/>
+            <ComponentRef Id="ConfigFiles"/>
+        </Feature>
+    </Product>
+</Wix>
