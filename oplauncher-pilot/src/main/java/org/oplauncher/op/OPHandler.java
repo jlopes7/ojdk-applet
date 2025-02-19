@@ -33,27 +33,29 @@ public abstract class OPHandler<P extends OPPayload> implements HttpAsyncRequest
     }
 
     protected void _VALIDATE_REQUEST_(HttpRequest request, boolean validateAppToken) throws OPLauncherException {
-        String configuredToken = ConfigurationHelper.getOPChromeToken().trim();
-        if (LOGGER.isDebugEnabled()) {
-            Arrays.stream(request.getAllHeaders()).forEach(header -> {
-               LOGGER.debug("(_VALIDATE_REQUEST_) Header entry from request -> {} := {}", header.getName(), header.getValue());
-            });
-        }
-        Header header = request.getFirstHeader(HTTP_HEADER_CHROMEEXT_TKN);
-        if (header == null) {
-            throw new OPLauncherException("Missing ext token in the request: " + HTTP_HEADER_CHROMEEXT_TKN, NO_VALID_CHROME_TOKEN_FOUND);
-        }
-        String requestToken = header.getValue();
+        if ( validateAppToken ) {
+            String configuredToken = ConfigurationHelper.getOPChromeToken().trim();
+            if (LOGGER.isDebugEnabled()) {
+                Arrays.stream(request.getAllHeaders()).forEach(header -> {
+                    LOGGER.debug("(_VALIDATE_REQUEST_) Header entry from request -> {} := {}", header.getName(), header.getValue());
+                });
+            }
+            Header header = request.getFirstHeader(HTTP_HEADER_CHROMEEXT_TKN);
+            if (header == null) {
+                throw new OPLauncherException("Missing ext token in the request: " + HTTP_HEADER_CHROMEEXT_TKN, NO_VALID_CHROME_TOKEN_FOUND);
+            }
+            String requestToken = header.getValue();
 
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Validating request header: {}", header);
-        }
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Internal Token ({}) === Request Token ({})", configuredToken, requestToken);
-        }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Validating request header: {}", header);
+            }
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Internal Token ({}) === Request Token ({})", configuredToken, requestToken);
+            }
 
-        if ( !requestToken.equals(configuredToken) ) {
-            throw new OPLauncherException("Invalid or not supported request token", NO_VALID_CHROME_TOKEN_FOUND);
+            if (!requestToken.equals(configuredToken)) {
+                throw new OPLauncherException("Invalid or not supported request token", NO_VALID_CHROME_TOKEN_FOUND);
+            }
         }
     }
 

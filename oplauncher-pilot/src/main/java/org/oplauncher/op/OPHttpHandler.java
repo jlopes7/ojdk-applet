@@ -21,11 +21,12 @@ public class OPHttpHandler<P extends OPPayload> extends OPHandler<P> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void handle(HttpRequest request, HttpAsyncExchange httpExchange, HttpContext httpContext) throws IOException {
         OPPayload payload = null;
 
         try {
-            _VALIDATE_REQUEST_(request);
+            _VALIDATE_REQUEST_(request, ConfigurationHelper.isOPServerAppTokenActive());
 
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Received a request from the client /{} ", getClientIp(httpContext));
