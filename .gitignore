@@ -12,6 +12,8 @@
 
 # Build files
 /build/
+CMakeCache.txt
+/CMakeFiles/
 
 # Package Files #
 *.jar
