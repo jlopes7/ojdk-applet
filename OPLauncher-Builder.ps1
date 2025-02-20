@@ -26,7 +26,7 @@ if ( -not(Test-Path $MSVCDevTools) ) {
 
 Write-Host "Loading MS VC toolling and preparing the environment..." -ForegroundColor White
 # Execute VsDevCmd.bat and capture the environment variables - WORKAROUND FROM CMD TO PS ! ;)
-$envVars = cmd /c "`"$MSVCDevTools\VsDevCmd.bat`" -arch=x64 && set" | Out-String
+$envVars = cmd /c "`"$MSVCDevTools\VsDevCmd.bat`" && set" | Out-String
 # Apply the environment variables to the current PowerShell session
 $envVars -split "`r`n" | ForEach-Object {
     if ($_ -match "^(.*?)=(.*)$") {
@@ -35,8 +35,13 @@ $envVars -split "`r`n" | ForEach-Object {
 }
 Write-Host "MSVC environment loaded successfully." -ForegroundColor Green
 
-# Ensure the Build Directories do exist
-New-Item -ItemType Directory -Force -Path $BUILD_DIR | Out-Null
+if ( Test-Path -Path $BUILD_DIR ) {
+    Remove-Item -Path $BUILD_DIR\* -Recurse -Force | Out-Null
+}
+else {
+    New-Item -ItemType Directory -Force -Path $BUILD_DIR | Out-Null
+}
+Copy-Item -Path $PROJECT_ROOT\logo\oplauncher_icon_32x32.ico -Destination $BUILD_DIR\ -Force
 
 # Step 1: Run CMake Compilation
 Write-Host "Building the native components of OPLauncher..." -ForegroundColor White
@@ -48,7 +53,7 @@ if ( -not([System.Environment]::GetEnvironmentVariable("OPLAUNCHER_JAVA_HOME", "
 }
 
 Set-Location -Path $PROJECT_ROOT
-& cmake -G "Ninja" oplauncher -B $BUILD_DIR -A x64 -DOPLAUNCHER_JAVA_HOME="$($env:OPLAUNCHER_JAVA_HOME)"
+& cmake -G "Ninja" oplauncher -B $BUILD_DIR -DOPLAUNCHER_JAVA_HOME="$($env:OPLAUNCHER_JAVA_HOME)"
 & cmake --build build --target clean -j $env:NUMBER_OF_PROCESSORS
 & cmake --build build --target all -j $env:NUMBER_OF_PROCESSORS
 if ($LASTEXITCODE -ne 0) {
