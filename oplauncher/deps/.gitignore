@@ -19,3 +19,7 @@ libcjson_utils.so.*
 cmake-build-debug
 *.lst
 *.lss
+cJSON_test.exe
+cjson.exp
+fuzzing/CMakeFiles/
+fuzzing/fuzz_main.exe

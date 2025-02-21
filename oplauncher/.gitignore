@@ -1,4 +1,9 @@
 /.idea/
+/.cmake/
+.ninja_deps
+.ninja_log
+**/*.dll
+**/*.lib
 /cmake-build-debug/
 /build/
 /CMakeFiles/
