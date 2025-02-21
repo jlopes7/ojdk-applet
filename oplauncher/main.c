@@ -226,7 +226,7 @@ int main(void) {
     /*
      * Step 3.1: Signal processing (optional step)
      */
-#if !defined(_WIN32) || !defined(_WIN64)
+#if !defined(_WIN32)
     // Register signal handler for SIGINT and SIGTERM
     signal(SIGINT, signal_handler);  // Handle Ctrl+C
     signal(SIGTERM, signal_handler); // Handle termination signal
