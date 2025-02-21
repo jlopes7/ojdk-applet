@@ -20,6 +20,10 @@ endif()
 if(WIN32)
     message(STATUS "Building on Windows")
     set(OS_PLATFORM "windows")
+    add_definitions(-D_WIN32)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        add_definitions(-D_WIN64)
+    endif()
 
     if(MSVC)
         add_compile_options(/wd4244 /wd4267 /wd4996) # Disable specific warnings
