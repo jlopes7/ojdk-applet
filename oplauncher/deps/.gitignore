@@ -1,5 +1,6 @@
 .svn
 test
+/tests/
 *.o
 *.a
 *.so
