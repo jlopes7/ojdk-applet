@@ -14,6 +14,7 @@
 /build/
 CMakeCache.txt
 /CMakeFiles/
+**/*.wixobj
 
 # Package Files #
 *.jar
