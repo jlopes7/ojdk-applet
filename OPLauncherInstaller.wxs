@@ -23,7 +23,7 @@
             <Directory Id="PersonalFolder">
                 <Directory Id="UserConfigDir" Name=".oplauncher">
                     <Component Id="ConfigFiles" Guid="be05e58f-e4ee-4cfa-93d6-ca86e55b2da7">
-                        <CreateFolder KeyPath="yes"/> <!-- Now the directory itself is the key path -->
+                        <CreateFolder />
                         <File Id="IniFile" Name="oplauncher.exe.ini" Source="$(var.OP_BASEDIR)\config\oplauncher.exe.ini"/>
                         <File Id="PropertiesFile" Name="config.properties" Source="$(var.OP_BASEDIR_PILOT)\src\main\resources\config.properties"/>
                     </Component>
