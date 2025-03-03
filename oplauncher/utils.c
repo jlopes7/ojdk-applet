@@ -23,7 +23,10 @@
 #include <stdint.h>
 #include "logging.h"
 
+static size_t _tuplet_params_sz;
+
 returncode_t create_nested_dirs(const char *);
+returncode_t create_tuplets(data_tuplet_t **tuplets, const char *param_contents, size_t num_tuplets);
 
 /**
  * Retrieve a formated error message to the stdout
@@ -319,7 +322,8 @@ returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void 
 returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **className, char **appletName,
                                         char **archiveUrl, char **baseUrl, char **codebase, umagicnum_t *magictkn,
                                         char **height, char **width, double *posx, double *posy,
-                                        data_tuplet_t *tupletCookies, data_tuplet_t *parameters) {
+                                        data_tuplet_t **tupletCookies, data_tuplet_t **parameters,
+                                        size_t *num_parameters, size_t *num_cookies) {
     cJSON   *json_op,
             *json_className,
             *json_appletName,
@@ -330,7 +334,9 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
             *json_width,
             *json_posx,
             *json_posy,
-            *json_magictkn;
+            *json_magictkn,
+            *json_params,
+            *json_cookies;
 
     logmsg(LOGGING_NORMAL, "Parsing the JSON Message: %s", jsonmsg);
     // Parse the JSON string
@@ -355,6 +361,8 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
     json_posx = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_POSX);
     json_posy = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_POSY);
     json_magictkn = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_MAGICTKN);
+    json_params = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_PARAMETERS);
+    json_cookies = cJSON_GetObjectItemCaseSensitive(json, CHROME_EXT_MSG_COOKIES);
 
     // Gets the extracted values
     if (cJSON_IsString(json_op) && (json_op->valuestring != NULL)) {
@@ -381,6 +389,32 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
     if (cJSON_IsString(json_width) && (json_width->valuestring != NULL)) {
         PTR(width) = strdup(json_width->valuestring);
     }
+    if (cJSON_IsString(json_params) && (json_params->valuestring != NULL)) {
+        const char *param_contents = json_params->valuestring;
+        size_t num_params = count_tuplets(param_contents);
+        if ( num_parameters ) {
+            PTR(num_parameters) = num_params;
+        }
+        logmsg(LOGGING_NORMAL, "Parsing the Applets parameters (size: %ld): %s", num_params, param_contents);
+
+        returncode_t rc = create_tuplets(parameters, param_contents, num_params);
+        if (!_IS_SUCCESS(rc)) {
+            return rc;
+        }
+    }
+    if (cJSON_IsString(json_cookies) && (json_cookies->valuestring != NULL)) {
+        const char *cookies_contents = json_cookies->valuestring;
+        size_t numcookies = count_tuplets(cookies_contents);
+        if ( num_cookies ) {
+            PTR(num_cookies) = numcookies;
+        }
+        logmsg(LOGGING_NORMAL, "Parsing the Applets cookies (size: %ld): %s", numcookies, cookies_contents);
+
+        returncode_t rc = create_tuplets(tupletCookies, cookies_contents, numcookies);
+        if (!_IS_SUCCESS(rc)) {
+            return rc;
+        }
+    }
     if (cJSON_IsNumber(json_magictkn)) {
         PTR(magictkn) = json_magictkn->valueint;
     }
@@ -395,6 +429,81 @@ returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **c
     cJSON_Delete(json);
 
     return EXIT_SUCCESS;
+}
+returncode_t create_tuplets(data_tuplet_t **tuplets, const char *param_contents, size_t num_tuplets) {
+    size_t index = 0;
+    PTR(tuplets) = malloc(sizeof(data_tuplet_t) * num_tuplets);
+    if (!PTR(tuplets)) {
+        logmsg(LOGGING_ERROR, "Memory allocation error for the parameter tuplets");
+        return RC_ERR_MEMORY_ALLOCATION_FAILED;
+    }
+    _MEMZERO(PTR(tuplets), sizeof(data_tuplet_t) * num_tuplets);
+
+    char *params_copy = strdup(param_contents);
+    if (!params_copy) {
+        free(params_copy);
+        free(tuplets);
+        logmsg(LOGGING_ERROR, "Memory allocation error for the parameter copy");
+        return RC_ERR_MEMORY_ALLOCATION_FAILED;
+    }
+
+    char *params_tkn = strtok(params_copy, ";");
+    while (params_tkn && index < num_tuplets) {
+        char *equal_sign = strchr(params_tkn, '=');
+
+        if (equal_sign) {
+            *equal_sign = '\0';
+            PTR(tuplets)[index].name = strdup(params_tkn);
+            PTR(tuplets)[index].value = strdup(equal_sign + 1);
+        }
+        else {
+            PTR(tuplets)[index].name = strdup(params_tkn);
+            PTR(tuplets)[index].value = "";
+        }
+
+        logmsg(LOGGING_NORMAL, "+-> Created TUPLET: NAME[%s]=VALUE[%s]", PTR(tuplets)[index].name, PTR(tuplets)[index].value);
+
+        index++;
+        params_tkn = strtok(NULL, ";"); // Next in line
+    }
+    // Cleanup...
+    free(params_copy);
+
+    return EXIT_SUCCESS;
+}
+
+void free_tuplets(data_tuplet_t *tuplets, size_t num_tuplets) {
+    if (tuplets) {
+        size_t index;
+        for (index = 0; index < num_tuplets; index++) {
+            free(tuplets[index].name);
+            free(tuplets[index].value);
+        }
+
+        free(tuplets);
+    }
+}
+
+/**
+ * Count the number of tuplets from the string parameter
+ * @param inputTuplets  the input with the tuplets
+ * @return  the number of tuplets
+ */
+size_t count_tuplets(const char *inputTuplets) {
+    size_t count = 0L;
+
+    if (!inputTuplets || *inputTuplets == '\0') {
+        return count;
+    }
+
+    const char *ptr = inputTuplets;
+    while (*ptr) {
+        if (*ptr == ';') {
+            count++;
+        }
+        ptr++;
+    }
+    return count + 1;
 }
 
 /**
@@ -498,9 +607,10 @@ returncode_t chrome_read_next_message(char *buffer) {
 returncode_t chrome_read_message(char *buffer) {
     uint32_t message_length;
 #if defined(_DEBUG_)
-    FILE *file = fopen("test_encrypted_input.bin", "rb");
+    FILE *file = fopen("test_encrypted_input2.bin", "rb");
+    //FILE *file = fopen("test_encrypted_input.bin", "rb");
     if (!file) {
-        perror("Failed to open test_encrypted_input.bin");
+        perror("Failed to open test_encrypted_input2.bin");
         return 1;
     }
     //printf("Reading input from test_input.bin...\n");

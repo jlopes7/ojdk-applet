@@ -93,6 +93,7 @@
 #   define PATH_SEPARATOR "/"
 #   define PATH_DELIMITER   ";"
 #endif
+#define EMPTY_CHAR      '\0'
 
 #define _MEMZERO(var, size) memset((var), 0, (size))
 
@@ -127,7 +128,8 @@ returncode_t chrome_read_message_length(uint32_t *message_length);
 returncode_t parse_msg_from_chrome_init(const char *jsonmsg, char **op, char **className, char **appletName,
                                         char **archiveUrl, char **baseUrl, char **codebase, umagicnum_t *magictkn,
                                         char **height, char **width, double *posx, double *posy,
-                                        data_tuplet_t *tupletCookies, data_tuplet_t *parameters);
+                                        data_tuplet_t **tupletCookies, data_tuplet_t **parameters,
+                                        size_t *num_parameters, size_t *num_cookies);
 returncode_t parse_get_jsonprop(const char *jsonmsg, const char *propname, void **propval);
 returncode_t parse_msg_from_chrome(const char *jsonmsg, char **clName, char **jpath, data_tuplet_t *tuplet);
 returncode_t get_oplauncher_home_directory(char *oplauncher_dir, size_t size);
@@ -142,6 +144,9 @@ const char* getOpLauncherCommanderJarFileName(void);
 
 returncode_t omit_stderr(void);
 void print_hello(void);
+
+size_t count_tuplets(const char *inputTuplets);
+void free_tuplets(data_tuplet_t *tuplets, size_t num_tuplets);
 
 returncode_t format_get_classpath(const char *directory, char **output, size_t size);
 returncode_t create_cache_directory(const char *cache_path);

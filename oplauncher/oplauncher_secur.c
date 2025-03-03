@@ -54,7 +54,7 @@ BOOL check_magicnumber_ratio(const char *jsonmsg) {
     /*
      * Simple and fast alg. check using the magic number as a mask
      */
-    return ( magicnum & default_magicnum ) == default_magicnum;
+    return VALID_MAGICNUM(magicnum, default_magicnum);
 }
 
 #ifdef _DES3_CUSTOM_IMPL
@@ -236,7 +236,7 @@ returncode_t des3_decrypt(const byte_t *key, const char *b64cypher, byte_t **dec
             decrypt_len -= pad_value;
         }
     }
-    PTR(decrypt_txt)[decrypt_len] = '\0';  // Null-terminate the cleaned string
+    PTR(decrypt_txt)[decrypt_len] = EMPTY_CHAR;
 
 #else
     DES_cblock key1, key2, key3;

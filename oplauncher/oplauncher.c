@@ -211,7 +211,8 @@ returncode_t read_encryptkey_token(char **token) {
 
 returncode_t load_applet(const char *op, const char *className, const char *appletName, const char *archiveUrl,
 						 const char *baseUrl, const char *codebase, const char *height, const char *width,
-						 const char *cookies, const char *parameters, double posx, double posy) {
+						 const data_tuplet_t *cookies, const data_tuplet_t *parameters, double posx, double posy,
+						 const size_t num_parameters, const size_t num_cookies) {
 	int param_counter = 0;
 	char additional_params[BUFFER_SIZE];
 	char *applet_params[OPLAUNCHER_PROTO_MAXPARAMS];
@@ -227,7 +228,16 @@ returncode_t load_applet(const char *op, const char *className, const char *appl
 	/// Add the additional parameters
 	snprintf(additional_params, BUFFER_SIZE, "width=%s;height=%s;posx=%.4f;posy=%.4f", width, height, posx, posy);
 	if ( parameters != NULL ) {
-		snprintf(additional_params, BUFFER_SIZE, "%s;%s", parameters, additional_params);
+		int idx = 0;
+		for (; idx < num_parameters; idx++) {
+			if ( parameters[idx].name && parameters[idx].value) {
+				char cur_param[MAX_PATH];
+				_MEMZERO(cur_param, MAX_PATH);
+				snprintf(cur_param, MAX_PATH, ";%s=%s", parameters[idx].name, parameters[idx].value);
+				strncat(additional_params, cur_param, strlen(cur_param));
+			}
+		}
+		//snprintf(additional_params, BUFFER_SIZE, "%s;%s", parameters, additional_params);
 	}
 	applet_params[param_counter++] = additional_params;
 

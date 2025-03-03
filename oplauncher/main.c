@@ -199,11 +199,13 @@ int main(void) {
 
     // Parse the incoming JSON (a simple example without full JSON parsing)
     char *op, *applet_name, *class_name, *archive_url, *base_url, *codebase, *height, *width;
+    data_tuplet_t *parameters, *cookies;
+    size_t num_parameters, num_cookies;
     double posx, posy;
     umagicnum_t magictkn;
     rc = parse_msg_from_chrome_init(buffer, &op, &class_name, &applet_name,
                                     &archive_url, &base_url, &codebase, &magictkn, &height,
-                                    &width, &posx, &posy, NULL, NULL);
+                                    &width, &posx, &posy, &cookies, &parameters, &num_parameters, &num_cookies);
 
     if ( !_IS_SUCCESS(rc) ) {
         logmsg(LOGGING_ERROR, "Could not parse the native message from chrome init: %d", rc);
@@ -216,6 +218,8 @@ int main(void) {
         free(codebase);
         free(height);
         free(width);
+        free_tuplets(parameters, num_parameters);
+        free_tuplets(cookies, num_cookies);
         logging_end();
         return EXIT_FAILURE;
     }
@@ -236,11 +240,14 @@ int main(void) {
     /*
      * Step 3.2: Trigger the applet execution
      */
-    rc = load_applet (op, class_name, applet_name, archive_url, base_url, codebase, height, width, NULL, NULL, posx, posy);
+    rc = load_applet (op, class_name, applet_name, archive_url, base_url, codebase, height, width,
+                      cookies, parameters, posx, posy, num_parameters, num_cookies);
     if ( !_IS_SUCCESS(rc) ) {
         logmsg(LOGGING_ERROR, "Could not load the Applet from chrome init (%s). Return code %d", class_name, rc);
         return RC_ERR_FAILED_LOAD_APPLET;
     }
+    free_tuplets(parameters, num_parameters);
+    free_tuplets(cookies, num_cookies);
 
     /*
      * Step 3.3: After the Applet is loaded is time to start the OP server

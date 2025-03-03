@@ -6,6 +6,7 @@
 #define DES3_KEY_SIZE             24
 #define BASE64_ENCODED_LEN(X)     (((X + 2) / 3) * 4 + 1)
 #define INITOKEN_ACTIVE(X)        (((X) & 0x000000ff) == 0x000000ff)
+#define VALID_MAGICNUM(X,Y)       ((((X) & (Y))) == (Y))
 #define BASE64_CHARACTERS         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 #ifdef _DES3_CUSTOM_IMPL
 #define DES3_BLOCK_SIZE            8 /*DES block size*/
