@@ -9,6 +9,7 @@ import org.oplauncher.res.FileResource;
 import org.oplauncher.res.HttpSessionResourceRequest;
 import org.oplauncher.res.ResourceRequestFactory;
 
+import static java.util.Optional.ofNullable;
 import static org.oplauncher.CommunicationParameterParser.IDX_RESURL;
 import static org.oplauncher.res.ResourceType.*;
 
@@ -156,14 +157,20 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         }
 
         try {
-            List<FileResource> resourceList = new ArrayList<>();
-            StringBuilder sb = new StringBuilder(loadSourceBaseURLPath);
-            if ( !loadSourceBaseURLPath.endsWith("/") ) sb.append('/');
-            if ( applTagDef == CommunicationParameterParser.AppletTagDef.CODEBASE ) sb.append(loadResApplType).append('/');
-            if ( LOGGER.isDebugEnabled() ) {
-                LOGGER.debug("Applet tag definition: [{}}]", applTagDef.name());
+            String codeBase;
+            String prePattUrlPath = ofNullable(loadSourceResURLPath).map(s->s.trim().toLowerCase()).orElse("");
+            if ( !prePattUrlPath.startsWith("http://") && !prePattUrlPath.startsWith("https://") ) {
+                StringBuilder sb = new StringBuilder(loadSourceBaseURLPath);
+                if (!loadSourceBaseURLPath.endsWith("/")) sb.append('/');
+                if (applTagDef == CommunicationParameterParser.AppletTagDef.CODEBASE)
+                    sb.append(loadResApplType).append('/');
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Applet tag definition: [{}}]", applTagDef.name());
+                }
+
+                codeBase = sb.toString();
             }
-            String codeBase = sb.toString();
+            else codeBase = "";
 
             URL loadSourceBaseURL = new URL(codeBase.concat(loadSourceResURLPath));
             if (LOGGER.isInfoEnabled()) {

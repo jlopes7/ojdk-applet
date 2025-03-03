@@ -29,8 +29,6 @@ public class AppletParameters {
 
         List<ParamPair> pairs = getPairs(appletName);
 
-        _paramMap.clear();
-
         String parameters[] = paramsDef.split(quote(";"));
         for (String paramSet : parameters) {
             final int IDX_KEY = 0;
@@ -39,6 +37,10 @@ public class AppletParameters {
 
             if ( paramSetParts.length > IDX_VAL ) {
                 ParamPair paramPair = new ParamPair(paramSetParts[IDX_KEY].trim().toLowerCase()/*make case insensitive*/, paramSetParts[IDX_VAL].trim());
+
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("(set) +-> Adding parameter pair set: {}", paramPair);
+                }
 
                 if ( !pairs.contains(paramPair) ) {
                     pairs.add(paramPair);

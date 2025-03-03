@@ -2,15 +2,21 @@ package org.oplauncher.res;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.oplauncher.ConfigurationHelper;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Paths;
 
 import static java.util.regex.Pattern.quote;
 
 public class FileResource {
+    static private final Logger LOGGER = LogManager.getLogger(FileResource.class);
+
     final int IDX_FILETYPE = 0;
     final int IDX_FILEDEF  = 1;
 
@@ -146,7 +152,15 @@ public class FileResource {
 
         if (parts[IDX_FILETYPE].equalsIgnoreCase("J")) return ResourceType.JAR_FILE;
         else if (parts[IDX_FILETYPE].equalsIgnoreCase("C")) return ResourceType.CLASS_FILE;
-        else return ResourceType.UNKNOWN;
+        else {
+            String filehash = getFileHash();
+            LOGGER.warn("The file type could not be evaluated by its code, trying to verify its extension: {}", filehash);
+
+            if (filehash.trim().toLowerCase().startsWith("z_")) return ResourceType.JAR_FILE;
+
+            // No resolution found
+            return ResourceType.UNKNOWN;
+        }
     }
 
     ///  class properties
