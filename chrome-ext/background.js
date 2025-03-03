@@ -2,7 +2,8 @@ importScripts("crypto-js.min.js", "resources.js");
 console.info("Resources loaded successfully:", OPResources);
 
 // Control flag to activate or de-activate the message sent to the background
-let BackendControlReady = false
+let BackendControlReady = false;
+let BackendConnActive = false;
 let TriggeredHBControl = false;
 
 // Saves the token
@@ -20,6 +21,20 @@ if (OPResources.DEBUG) {
             console.error("Failed to connect to native app", e);
         });
     });
+}
+
+async function activateConnSwitch() {
+    BackendConnActive = true;
+    console.info("Connection switch is activated!");
+    return true;
+}
+async function deactivateConnSwitch() {
+    BackendConnActive = false;
+    console.info("Connection switch is deactivated!");
+    return true;
+}
+function isConnSwitchActive() {
+    return BackendConnActive;
 }
 
 /**
@@ -46,10 +61,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.op === OPResources.OP_LOAD) {
         console.info("About to load the OJDK Applet Launcher for the applet:", message.appletName);
 
+        // Activate the connection switch
+        if (!isConnSwitchActive()) activateConnSwitch();
+
         /*
          * Option 0: Selects the correct Pipe!
          */
         if ( message.firstload || message.pipecfn === OPResources.PIPE_STDOUT) {
+            // Activates the connection switch
+
             /*
              * Option 1: Loads the Applet base code and sends its bits as B64 across the wire
              * -> May be a valid option for the future, but for now is deactivated
@@ -255,7 +275,8 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
                 });
 
                 if (ctrl_interval) clearInterval(ctrl_interval);
-            } else {
+            }
+            else {
                 console.warn("OPLauncher backend port is not available yet for (%s). Attempt: %s", messageToNative.appletName, try_attempts);
                 try_attempts++;
                 if (try_attempts > MAX_TRIES) {
@@ -267,11 +288,16 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
         }
     }
 
-    BackendControlReady = false;
-    // Lets check start the HB if necessary
-    startOPHBCheck();
-    // Starts the thread loop to check if the connection is available or not
-    ctrl_interval = setInterval(safeSendRequest, 1000); // ping on every second...
+    if (isConnSwitchActive()) {
+        BackendControlReady = false;
+        // Lets check start the HB if necessary
+        startOPHBCheck();
+        // Starts the thread loop to check if the connection is available or not
+        ctrl_interval = setInterval(safeSendRequest, 1000); // ping on every second...
+    }
+    else {
+        console.warn("The connection switch is de-activated, no request was made. Reload the page to re-activate the OPLauncher connection.")
+    }
 
     return true;
 }
@@ -356,6 +382,10 @@ function send2native(messageToNative, callback, callbackErr) {
     port.onDisconnect.addListener(() => {
         console.warn("Native host (OPLauncher) was disconnected.");
         if (callbackErr) callbackErr("Connection was closed");
+
+        // If the connection is not active, the switch should be de-activated and it will
+        // only be active again after the page reload
+        if (isConnSwitchActive()) deactivateConnSwitch();
     });
 }
 

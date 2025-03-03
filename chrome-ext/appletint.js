@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				let cookieStr = "";
 				if ( message.cookies ) {
 					cookieStr = message.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
-					}
+				}
 
 				console.info(`Cookies found: [${cookieStr}]`);
 
@@ -124,14 +124,17 @@ document.addEventListener("DOMContentLoaded", () => {
 				else console.info("First applet already loaded, preparing to load the next:", appletName);
 
 				// Ensure message is sent after fetching cookies
-				sendAppletMessage(cookieStr, firstAppletLoaded);
+				sendAppletMessage(cookieStr, firstAppletLoaded, parametersStr);
 			});
 
 			/**
 			 * Send the applet message
 			 */
-			function sendAppletMessage(cookieStr, executionTriage) {
+			function sendAppletMessage(cookieStr, executionTriage, params) {
 				const position = getAbsoluteScreenPosition(iframe);
+
+				console.info("Parsed Applet parameters to be transmitted: %s", params);
+
 				const requestMsg = {
 					op: OPResources.OP_LOAD,
 					className: className,
@@ -143,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
 					height: height,
 					posx: position.x,
 					posy: position.y,
-					parameters: parametersStr,
+					parameters: params,
 					cookies: cookieStr,
 					pipecfn: OPResources.PREFERED_PIPE,
 					firstload: executionTriage
@@ -399,6 +402,14 @@ function removeEventListeners() {
 	//document.removeEventListener("visibilitychange", handleVisibilityChange);
 	window.removeEventListener("scroll", updateAppletPosition);
 	window.removeEventListener("resize", updateAppletPosition);
+
+	// Status message for all the Applet unloading...
+	for (let i=0; i<frame_count ;i++) {
+		let iframeId = getAppletIFrameID(i);
+		const iframe = document.getElementById(iframeId);
+
+		if (iframe) iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher unloaded!';
+	}
 }
 
 /* ==========================================================
