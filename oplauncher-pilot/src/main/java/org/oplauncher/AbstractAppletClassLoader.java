@@ -23,12 +23,14 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class AbstractAppletClassLoader<T> extends ClassLoader implements IAppletClassLoader<T> {
     static private final Lock LOCK = new ReentrantLock();
@@ -348,7 +350,39 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                 throw new OPLauncherException(String.format("Unsupported archive classloader type: [%s]", type.name()), ErrorCode.UNSUPPORTED_ARCHIVE_CLZLOADER);
             }
         }
+    }
+    protected void loadZip(final File zipPath) throws IOException {
+        ArchiveClassLoaderType type = ConfigurationHelper.getArchiveClassLoaderType();
+        switch (type) {
+            case URL: {
+                final List<URL> urls = new ArrayList<>();
+                try (Stream<Path> paths = Files.walk(zipPath.toPath())) {
+                    paths.forEach(path -> {
+                        try {
+                            BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                            if (!attrs.isDirectory()) {
+                                if (LOGGER.isDebugEnabled()) {
+                                    LOGGER.debug("(loadZip) +-> Adding resource to the URL classloder list: [{}]", path.toFile().getAbsolutePath());
+                                }
 
+                                _fileMap.put(path.toFile().getName(), FileResource.ofResource(path.toFile()));
+                                urls.add(path.toFile().toURI().toURL());
+                            }
+                        }
+                        catch (IOException ioex) {
+                            LOGGER.warn("Could not load URL classloader from the Zip file: {}", path, ioex);
+                        }
+                    });
+
+                    // Create the URL class loader
+                    _urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]));
+                }
+                break;
+            }
+            default: {
+                throw new OPLauncherException(String.format("Unsupported archive classloader type: [%s]", type.name()), ErrorCode.UNSUPPORTED_ARCHIVE_CLZLOADER);
+            }
+        }
     }
 
     protected URLClassLoader getURLClassLoader(final String name) {

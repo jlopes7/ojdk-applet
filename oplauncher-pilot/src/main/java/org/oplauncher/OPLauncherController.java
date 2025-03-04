@@ -61,7 +61,7 @@ public class OPLauncherController {
                 "", "clock1",
                 "width=81;height=120;posx=11.0000;posy=296.0000",
                 "tz.class"));*/
-        controller.processLoadAppletOp(Arrays.asList("load_applet",
+        /*controller.processLoadAppletOp(Arrays.asList("load_applet",
                 "https://download.java.net/media/jogl/demos/www/",
                 "",
                 "http://download.java.net/media/applet-launcher/applet-launcher.jar,\n" +
@@ -71,6 +71,12 @@ public class OPLauncherController {
                         "               http://download.java.net/media/jogl/jsr-231-2.x-demos-webstart/jogl-demos.jar",
                 "Java_Net_Test",
                 "width=600;height=400;posx=8.0000;posy=163.0000;codebase_lookup=false;subapplet.classname=demos.applets.GearsApplet;subapplet.displayname=JOGL Gears Applet;noddraw.check=true;jnlpNumExtensions=1;jnlpExtension1=http://download.java.net/media/jogl/jsr-231-2.x-webstart/jogl-core.jnlp",
-                "org.jdesktop.applet.util.JNLPAppletLauncher"));
+                "org.jdesktop.applet.util.JNLPAppletLauncher"));*/
+        controller.processLoadAppletOp(Arrays.asList("load_applet",
+                "https://courses.worldcampus.psu.edu/public/diagnostics/",
+                "",
+                "tract10.zip", "Java Test",
+                "width=71;height=71;posx=11.0000;posy=296.0000;cabbase=tract10.cab;corners=0,0|70,70|70,0||0,0|0,70|70,70;creep=2,20;delay=250;fgcolor=FF0000;debug=0",
+                "Tractrix"));
     }
 }

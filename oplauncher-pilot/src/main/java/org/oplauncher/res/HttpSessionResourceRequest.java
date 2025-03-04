@@ -18,12 +18,17 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static java.util.regex.Pattern.quote;
 import static org.oplauncher.ErrorCode.*;
 
 public class HttpSessionResourceRequest implements IResourceRequest<FileResource> {
     static private final Logger LOGGER = LogManager.getLogger(HttpSessionResourceRequest.class);
+    static private final Lock LOCK = new ReentrantLock();
+
+    static private URL _lastRegisteredURL;
 
     protected HttpSessionResourceRequest() {}
 
@@ -58,10 +63,32 @@ public class HttpSessionResourceRequest implements IResourceRequest<FileResource
         return null;
     }
 
+    static public <T>T registerLastURL(URL url, T instance) {
+        LOCK.lock();
+        try {
+            _lastRegisteredURL = url;
+
+            return instance;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
+    static public URL getLastRegisteredURL() {
+        LOCK.lock();
+        try {
+            return _lastRegisteredURL;
+        }
+        finally {
+            LOCK.unlock();
+        }
+    }
+
     @Override
     public <K, V>FileResource getResource(URL url, Map<K, V> cookieParameters) throws OPLauncherException {
         // Check the cache first
-        FileResource cachedResource = verifyCache(url);
+        FileResource cachedResource = registerLastURL(url, this).verifyCache(url);
         if (cachedResource != null) return cachedResource;
 
         if (LOGGER.isInfoEnabled()) {

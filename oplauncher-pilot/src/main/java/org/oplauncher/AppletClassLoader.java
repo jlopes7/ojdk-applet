@@ -50,6 +50,11 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
                             loadJar(resource.getFile());
                             break;
                         }
+                        /// Zip content to be loaded
+                        case ZIP_FILE: {
+                            loadZip(resource.getTempClassPath()); // Load all the classes from the temp folder
+                            break;
+                        }
                         case UNKNOWN: {
                             throw new OPLauncherException(String.format("Unknown resource type: [%s]", resource.getFile().getName()), CLASSPATH_LOAD_ERROR);
                         }

@@ -1,17 +1,25 @@
 package org.oplauncher.res;
 
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.ConfigurationHelper;
+import org.oplauncher.ErrorCode;
+import org.oplauncher.OPLauncherException;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Enumeration;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.regex.Pattern.quote;
 
 public class FileResource {
@@ -23,20 +31,20 @@ public class FileResource {
     public enum ResourceType {
         JAR_FILE,
         CLASS_FILE,
+        ZIP_FILE,
         UNKNOWN
     }
 
     public FileResource(File maskedFile) {
         String filename = maskedFile.getName();
 
-        _maskedFile = maskedFile;
-        _fileHash = URLUtils.generateMD5FromFileName(filename);
-
-        _tmpClassPathPath = createTempDirectory();
-
-        // unmask the file
-        unmaskFile();
+        setMaskedFile(maskedFile)
+                .setFileHash(filename)
+                .setTempClassPath(createTempDirectory())
+                // unmask the file
+                .unmaskFile();
     }
+    private FileResource() {}
 ;
     private File createTempDirectory() {
         try {
@@ -98,6 +106,11 @@ public class FileResource {
             final int IDX_CLASSNAME = 0;
             String filePartPattern = new String(Hex.decodeHex(filePart), Charset.defaultCharset());
             switch (type) {
+                case ZIP_FILE: {
+                    LOGGER.info("Unmasking zip archive file...");
+                    expandZIPContents();
+                    break;
+                }
                 case JAR_FILE: {
                     _file = new File(getTempClassPath(), filePartPattern);
                     FileUtils.copyFile(getMaskedFile(), getUnmaskedFile());
@@ -128,6 +141,93 @@ public class FileResource {
         return this;
     }
 
+    static public FileResource ofResource(File file) {
+        FileResource res = new FileResource();
+        String filename = file.getName();
+
+        if (file.isDirectory()) {
+            throw new OPLauncherException("Cannot create a resource from a directory: " + file.getAbsolutePath(), ErrorCode.FAILED_TO_LOAD_RESOURCE);
+        }
+
+        res.setUnmaskedFile(file)
+            .setFileHash(filename)
+            .maskFile(file)
+            .setTempClassPath(file.getParentFile());
+
+        return res;
+    }
+
+    private FileResource maskFile(File file) {
+        String hashedFileName = getFileHash();
+        String cachePath = URLUtils.reverseUrlToPackageName(HttpSessionResourceRequest.getLastRegisteredURL());
+        File cacheHome = new File(ConfigurationHelper.getCacheHomeDirectory(), cachePath);
+        File hashFile = new File(cacheHome, hashedFileName);
+
+        try {
+            FileUtils.copyFile(file, hashFile);
+            _maskedFile = hashFile;
+
+            return this;
+        }
+        catch (IOException e) {
+            throw new OPLauncherException("Failed to mask file: " + hashedFileName, ErrorCode.FAILED_TO_LOAD_RESOURCE);
+        }
+    }
+    private FileResource setUnmaskedFile(File file) {
+        _file = file;
+        return this;
+    }
+    private FileResource setFileHash(String filename) {
+        _fileHash = URLUtils.generateMD5FromFileName(filename);
+        return this;
+    }
+    private FileResource setTempClassPath(File tempClassPath) {
+        _tmpClassPathPath = tempClassPath;
+        return this;
+    }
+    private FileResource setMaskedFile(File file) {
+        _maskedFile = file;
+        return this;
+    }
+
+    private void expandZIPContents() throws IOException {
+        Path outputDir = getTempClassPath().toPath();
+
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Expanding zip contents to [{}]", outputDir);
+        }
+
+        // Ensure output directory exists
+        if (!Files.exists(outputDir)) {
+            Files.createDirectories(outputDir);
+        }
+
+        // Open ZIP file
+        try (ZipFile zip = new ZipFile(getMaskedFile())) {
+            Enumeration<ZipArchiveEntry> entries = zip.getEntries();
+            while (entries.hasMoreElements()) {
+                ZipArchiveEntry entry = entries.nextElement();
+                Path entryPath = outputDir.resolve(entry.getName());
+
+                if (entry.isDirectory()) {
+                    Files.createDirectories(entryPath);
+                }
+                else {
+                    // Ensure parent directories exist for the resource
+                    Files.createDirectories(entryPath.getParent());
+
+                    // Extract file to directory
+                    try (InputStream inputStream = zip.getInputStream(entry)) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("(expandZIPContents) +-> Expanding ZIP content to: [{}]", entryPath.toFile().getAbsolutePath());
+                        }
+                        Files.copy(inputStream, entryPath, REPLACE_EXISTING);
+                    }
+                }
+            }
+        }
+    }
+
     public File getMaskedFile() {
         return _maskedFile;
     }
@@ -152,12 +252,8 @@ public class FileResource {
 
         if (parts[IDX_FILETYPE].equalsIgnoreCase("J")) return ResourceType.JAR_FILE;
         else if (parts[IDX_FILETYPE].equalsIgnoreCase("C")) return ResourceType.CLASS_FILE;
+        else if (parts[IDX_FILETYPE].equalsIgnoreCase("Z")) return ResourceType.ZIP_FILE;
         else {
-            String filehash = getFileHash();
-            LOGGER.warn("The file type could not be evaluated by its code, trying to verify its extension: {}", filehash);
-
-            if (filehash.trim().toLowerCase().startsWith("z_")) return ResourceType.JAR_FILE;
-
             // No resolution found
             return ResourceType.UNKNOWN;
         }
