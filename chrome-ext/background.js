@@ -407,7 +407,7 @@ function arrayBufferToBase64(buffer) {
  * Checks to see if the backend server is active or not
  */
 function checkBackendStatus(hbInterval) {
-    if (BackendControlReady) {
+    if (BackendControlReady || !BackendConnActive) {
         clearInterval(hbInterval);
         return;
     } // Skip check if already ready

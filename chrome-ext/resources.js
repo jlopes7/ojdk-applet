@@ -27,6 +27,8 @@ let OPResources = {
     WS2_BACKEND: "websocket",
     SELECTED_BACKEND_TP: "json",
 
+    JAVA_MIME_TYPE: "application/x-java-applet",
+
     DEFAULT_APP_TOKEN: "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT",
 
     PIPE_STDOUT: "pip_stdout",

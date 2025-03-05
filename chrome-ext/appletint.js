@@ -18,6 +18,7 @@ const OPLAUNCHER_RESPONSE_CODE = "oplauncher_applet_response";
 const registeredAppletList = new Array();
 
 let frame_count = 0;
+let firstAppletLoaded = true;
 
 /* ===========================================================
  	HTML CONTENT FOR THE APPLET IFRAME
@@ -57,137 +58,225 @@ document.addEventListener("DOMContentLoaded", () => {
 		console.info("Resources loaded successfully:", OPResources);
 
 		console.info("Looking for Applet entries in the page...");
-		let firstAppletLoaded = true;
 		const applets = document.querySelectorAll("applet");
+		const appletObjs = document.querySelectorAll("object");
+		const embededObjs = document.querySelectorAll("embed");
 
-		applets.forEach((applet) => {
-			console.log("applet", applet);
-			const className = applet.getAttribute("code");
-			const archiveUrl = applet.getAttribute("archive") || "";
-			const codebase = applet.getAttribute("codebase") || "";
-			const appletName = applet.getAttribute("name") || genRandomAppletName(16);
-			const width = applet.getAttribute("width") || 0;
-			const height = applet.getAttribute("height") || 0;
-			// Construct the full base URL
-			const baseUrl = getBasePath(window.location.href);
-
-			console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase, appletName, width, height });
-
-			// Register the Applet name to the list
-			registeredAppletList.push({
-				appletName: appletName,
-				className: className,
-				archiveUrl: archiveUrl,
-				codebase: codebase,
-				width: width,
-				height: height
-			});
-			console.info ("Found Applet: %s . Number of applets in the registered list: %d", appletName, registeredAppletList.length);
-
-			// Create an iframe replacement for the applet
-			const iframe = document.createElement("iframe");
-			iframe.width = width;
-			iframe.height = height;
-			iframe.style.border = "none";
-			iframe.style.backgroundColor = "white";
-			iframe.id = getAppletIFrameID(frame_count++);
-
-			// Set the iframe content dynamically
-			iframe.srcdoc = APPLET_HTML_CONTENT_OPEN;
-			// Replace the applet with the iframe
-			applet.replaceWith(iframe);
+		console.info("Processing the Applet tags...");
+		applets.forEach((appletEl) => {
+			console.log("applet", appletEl);
+			const className = appletEl.getAttribute("code");
+			const archiveUrl = appletEl.getAttribute("archive") || "";
+			const codebase = appletEl.getAttribute("codebase") || "";
+			const appletName = appletEl.getAttribute("name") || genRandomAppletName(16);
+			const width = appletEl.getAttribute("width") || 0;
+			const height = appletEl.getAttribute("height") || 0;
 
 			// Extract applet parameters and format them as "key1=value1;key2=value2"
 			let paramArray = [];
-			applet.querySelectorAll("param").forEach((param) => {
+			appletEl.querySelectorAll("param").forEach((param) => {
 				const paramName = param.getAttribute("name");
 				const paramValue = param.getAttribute("value");
 				if (paramName && paramValue) {
 					paramArray.push(`${paramName}=${paramValue}`);
 				}
 			});
-			const parametersStr = paramArray.join(";");
 
-			let cookies = []
-			if (chrome.cookies) {
-				cookies = chrome.cookies.getAll({url: window.location.origin});
-			}
-			getCookies(function (message) {
-				let cookieStr = "";
-				if ( message.cookies ) {
-					cookieStr = message.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
-				}
-
-				console.info(`Cookies found: [${cookieStr}]`);
-
-				if (firstAppletLoaded) console.info("First Applet to be loaded:", appletName);
-				else console.info("First applet already loaded, preparing to load the next:", appletName);
-
-				// Ensure message is sent after fetching cookies
-				sendAppletMessage(cookieStr, firstAppletLoaded, parametersStr);
-			});
-
-			/**
-			 * Send the applet message
-			 */
-			function sendAppletMessage(cookieStr, executionTriage, params) {
-				const position = getAbsoluteScreenPosition(iframe);
-
-				console.info("Parsed Applet parameters to be transmitted: %s", params);
-
-				const requestMsg = {
-					op: OPResources.OP_LOAD,
-					className: className,
-					archiveUrl: archiveUrl,
-					codebase: codebase,
-					appletName: appletName,
-					baseUrl: baseUrl,
-					width: width,
-					height: height,
-					posx: position.x,
-					posy: position.y,
-					parameters: params,
-					cookies: cookieStr,
-					pipecfn: OPResources.PREFERED_PIPE,
-					firstload: executionTriage
-				};
-
-				firstAppletLoaded = false;
-				/// We have to wait a bit for the iframe to be rendered
-				setTimeout(() => {
-					if (Object.keys(requestMsg).length > 0) {
-						console.info("About to send the request to backend port", requestMsg);
-
-						/**
-						 * ----------------------
-						 *  OP: LOAD THE APPLET
-						 * ----------------------
-						 * --> Send cookies along with applet details to the background script
-						 */
-						chrome.runtime.sendMessage(requestMsg, (resp) => {
-							if (!resp || !resp.response) {
-								console.warn("Received an empty response from the backend", resp);
-								return;
-							}
-
-							console.log("Applet Response computed:", resp);
-							if (resp.action === OPResources.OP_LOAD) {
-								iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded!';
-
-								// TODO: Implement
-							}
-						});
-					}
-					else {
-						console.error("Request payload is empty, not sending!");
-					}
-				}, 100); // delay for 100ms to ensure the page is loaded
-			}
-
-			// TODO: Additional operations go here!
+			// Process the Applet tag
+			processAppletDefinition(appletEl, className, archiveUrl, codebase, appletName, width, height, paramArray,
+				(resp, iframe) => {
+					iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded!';
+				});
 		});
+
+		console.info("Processing the Object tags...");
+		appletObjs.forEach((objectEl) => {
+			const elType = objectEl.getAttribute("type");
+
+			if ( elType === OPResources.JAVA_MIME_TYPE ) {
+				let className="", archiveUrl="", codebase="", appletName=genRandomAppletName(16),
+					width=objectEl.getAttribute("width") || 0,
+					height=objectEl.getAttribute("height") || 0;
+				console.info("Found an applet to be processed in the Object element!");
+
+				let additionalParams = new Array();
+				const obParams = objectEl.querySelectorAll("param");
+				obParams.forEach((param) => {
+					const paramName = param.getAttribute("name");
+					const paramValue = param.getAttribute("value") || "";
+
+					switch (paramName) {
+						case "codebase": codebase = paramValue; break;
+						case "archive": archiveUrl = paramValue; break;
+						case "code": className = paramValue; break;
+						case "width": width = paramValue; break;
+						case "height": height = paramValue; break;
+						case "name": appletName = paramValue; break;
+						default: {
+							additionalParams.push(`${paramName}=${paramValue}`);
+						}
+					}
+				});
+
+				// Process the Object tag
+				processAppletDefinition(objectEl, className, archiveUrl, codebase, appletName, width, height, additionalParams,
+				(resp, iframe) => {
+					iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded from Object element!';
+				});
+			}
+			else {
+				console.warn("Object element is not an Applet definition:", objectEl);
+			}
+		});
+
+		console.info("Processing the Embed tags...");
+		embededObjs.forEach((embedEl) => {
+			const elType = embedEl.getAttribute("type");
+
+			if ( elType === OPResources.JAVA_MIME_TYPE ) {
+				const className = embedEl.getAttribute("code") || "",
+					archiveUrl = embedEl.getAttribute("archive") || "",
+					codebase = embedEl.getAttribute("codebase") || "",
+					appletName = embedEl.getAttribute("name") || genRandomAppletName(16),
+					width = embedEl.getAttribute("width") || 0,
+					height = embedEl.getAttribute("height") || 0;
+				console.info("Found an applet to be processed in the Embed element!");
+
+				let additionalParams = new Array();
+				// TODO: For now, additional parameters are not processed parameters are not processed
+
+				// Process the Object tag
+				processAppletDefinition(embedEl, className, archiveUrl, codebase, appletName, width, height, additionalParams,
+				(resp, iframe) => {
+					iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher loaded from Embed element!';
+				});
+			}
+			else {
+				console.warn("Embed element is not an Applet definition:", embedEl);
+			}
+		});
+		// TODO: Additional operations go here!
 	});
 });
+
+/**
+ * Process the Applet definition
+ * @param className		the Applet classname
+ * @param archiveUrl	the archive URL(s)
+ * @param codebase		the Applet codebase (if any)
+ * @param appletName	the Applet name
+ * @param width			the Applet width
+ * @param height		the Applet height
+ * @param cb			the callback function after processing
+ */
+function processAppletDefinition(appletEl, className, archiveUrl, codebase, appletName, width, height, paramArray, cb) {
+	// Construct the full base URL
+	const baseUrl = getBasePath(window.location.href);
+
+	console.info ("Found Applet:", { className, baseUrl, archiveUrl, codebase, appletName, width, height });
+
+	// Register the Applet name to the list
+	registeredAppletList.push({
+		appletName: appletName,
+		className: className,
+		archiveUrl: archiveUrl,
+		codebase: codebase,
+		width: width,
+		height: height
+	});
+	console.info ("Found Applet: %s . Number of applets in the registered list: %d", appletName, registeredAppletList.length);
+
+	// Create an iframe replacement for the applet
+	const iframe = document.createElement("iframe");
+	iframe.width = width;
+	iframe.height = height;
+	iframe.style.border = "none";
+	iframe.style.backgroundColor = "white";
+	iframe.id = getAppletIFrameID(frame_count++);
+
+	// Set the iframe content dynamically
+	iframe.srcdoc = APPLET_HTML_CONTENT_OPEN;
+	// Replace the applet with the iframe
+	appletEl.replaceWith(iframe);
+
+	const parametersStr = paramArray.join(";");
+
+	let cookies = []
+	if (chrome.cookies) {
+		cookies = chrome.cookies.getAll({url: window.location.origin});
+	}
+	getCookies(function (message) {
+		let cookieStr = "";
+		if ( message.cookies ) {
+			cookieStr = message.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
+		}
+
+		console.info(`Cookies found: [${cookieStr}]`);
+
+		if (firstAppletLoaded) console.info("First Applet to be loaded:", appletName);
+		else console.info("First applet already loaded, preparing to load the next:", appletName);
+
+		// Ensure message is sent after fetching cookies
+		sendAppletMessage(cookieStr, firstAppletLoaded, parametersStr);
+	});
+
+	/**
+	 * Send the applet message
+	 */
+	function sendAppletMessage(cookieStr, executionTriage, params) {
+		const position = getAbsoluteScreenPosition(iframe);
+
+		console.info("Parsed Applet parameters to be transmitted: %s", params);
+
+		const requestMsg = {
+			op: OPResources.OP_LOAD,
+			className: className,
+			archiveUrl: archiveUrl,
+			codebase: codebase,
+			appletName: appletName,
+			baseUrl: baseUrl,
+			width: width,
+			height: height,
+			posx: position.x,
+			posy: position.y,
+			parameters: params,
+			cookies: cookieStr,
+			pipecfn: OPResources.PREFERED_PIPE,
+			firstload: executionTriage
+		};
+
+		firstAppletLoaded = false;
+		/// We have to wait a bit for the iframe to be rendered
+		setTimeout(() => {
+			if (Object.keys(requestMsg).length > 0) {
+				console.info("About to send the request to backend port", requestMsg);
+
+				/**
+				 * ----------------------
+				 *  OP: LOAD THE APPLET
+				 * ----------------------
+				 * --> Send cookies along with applet details to the background script
+				 */
+				chrome.runtime.sendMessage(requestMsg, (resp) => {
+					if (!resp || !resp.response) {
+						console.warn("Received an empty response from the backend", resp);
+						return;
+					}
+
+					console.log("Applet Response computed:", resp);
+					if (resp.action === OPResources.OP_LOAD) {
+						if (cb) cb(resp, iframe);
+
+						// TODO: Implement
+					}
+				});
+			}
+			else {
+				console.error("Request payload is empty, not sending!");
+			}
+		}, 100); // delay for 100ms to ensure the page is loaded
+	}
+}
 
 /**
  * return the custom iFrame ID
