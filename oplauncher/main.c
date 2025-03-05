@@ -244,6 +244,9 @@ int main(void) {
                       cookies, parameters, posx, posy, num_parameters, num_cookies);
     if ( !_IS_SUCCESS(rc) ) {
         logmsg(LOGGING_ERROR, "Could not load the Applet from chrome init (%s). Return code %d", class_name, rc);
+/*#if defined(_WIN32) || defined(_WIN64)
+        TerminateProcess(GetCurrentProcess(), RC_ERR_FAILED_LOAD_APPLET);
+#endif*/
         return RC_ERR_FAILED_LOAD_APPLET;
     }
     free_tuplets(parameters, num_parameters);

@@ -418,11 +418,14 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 	// Call the processLoadAppletOp method
 	jstring resultString = (jstring)PTR(env)->CallObjectMethod(env, PTR(jvm_launcher).applet_classloader, loadAppletMethodID, parameterList);
 	if (resultString == NULL) {
-		char *errMsg = "Error: Applet trigger returned null.";
+		char *errMsg = "Error: Applet method trigger returned null.";
 		logmsg(LOGGING_ERROR, errMsg);
-		send_jsonerror_message(errMsg, RC_ERR_WRONG_RESULT_CLLOADER);
+		//send_jsonerror_message(errMsg, RC_ERR_WRONG_RESULT_CLLOADER);
 
 		PTR(jvm)->DetachCurrentThread(jvm);
+		PTR(env)->DeleteLocalRef(env, PTR(jvm_launcher).applet_classloader);
+		PTR(env)->DeleteLocalRef(env, parameterList);
+
 		return RC_ERR_WRONG_RESULT_CLLOADER;
 	}
 
@@ -441,6 +444,18 @@ returncode_t trigger_applet_execution(const char *class_name, char **params, int
 		PTR(env)->DeleteLocalRef(env, parameterList);
 
 		return RC_ERR_TYPECONVERTING_FAILED;
+	}
+
+	/* =====================================================
+	 *     We need to check for errors in the execution
+	 * ===================================================== */
+	if ( strcmp(resultCStr, APPLET_ERROR_MESSAGE) == 0 ) {
+		logmsg(LOGGING_ERROR, "The JVM executing the Applet exit with an error. Details should be found in the JVM logs. Ending OPLauncher");
+		// Release resources
+		PTR(env)->ReleaseStringUTFChars(env, resultString, resultCStr);
+		PTR(jvm)->DetachCurrentThread(jvm);
+
+		return RC_ERR_FAILED_APPLET_EXECUTION;
 	}
 
 	logmsg(LOGGING_NORMAL, "JVM Applet loader response: (%s)", resultCStr);

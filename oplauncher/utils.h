@@ -15,6 +15,8 @@
 #define MAX_LOG_FILE    0x00000400 /*1K*/
 #define	PTR(X)		(*X)
 
+#define APPLET_ERROR_MESSAGE "Failure"
+
 #if !defined (MAXPATHLEN)
 #   define MAXPATHLEN	MAX_LOG_FILE
 #endif

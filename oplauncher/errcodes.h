@@ -51,5 +51,6 @@
 #define RC_ERR_CHROME_WRONG_PAYLOAD         7047
 #define RC_ERR_DECODE_MSG_ERROR             7048
 #define RC_ERR_MEMORY_ALLOCATION            7049
+#define RC_ERR_FAILED_APPLET_EXECUTION      7050
 
 #endif //_ERRCODES_H
