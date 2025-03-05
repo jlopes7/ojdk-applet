@@ -3,6 +3,7 @@ package org.oplauncher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.swing.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
@@ -37,6 +38,8 @@ public class OPLauncherController {
         }
         catch (OPLauncherException e) {
             LOGGER.error("Failed to load the Applet", e);
+            e.printStackTrace(System.err);
+
             return FAILURE_RESPONSE;
         }
     }
@@ -72,11 +75,25 @@ public class OPLauncherController {
                 "Java_Net_Test",
                 "width=600;height=400;posx=8.0000;posy=163.0000;codebase_lookup=false;subapplet.classname=demos.applets.GearsApplet;subapplet.displayname=JOGL Gears Applet;noddraw.check=true;jnlpNumExtensions=1;jnlpExtension1=http://download.java.net/media/jogl/jsr-231-2.x-webstart/jogl-core.jnlp",
                 "org.jdesktop.applet.util.JNLPAppletLauncher"));*/
-        controller.processLoadAppletOp(Arrays.asList("load_applet",
+        /*controller.processLoadAppletOp(Arrays.asList("load_applet",
                 "https://courses.worldcampus.psu.edu/public/diagnostics/",
                 "",
                 "tract10.zip", "Java Test",
                 "width=71;height=71;posx=11.0000;posy=296.0000;cabbase=tract10.cab;corners=0,0|70,70|70,0||0,0|0,70|70,70;creep=2,20;delay=250;fgcolor=FF0000;debug=0",
-                "Tractrix"));
+                "Tractrix"));*/
+        /*controller.processLoadAppletOp(Arrays.asList("load_applet",
+                "http://www.pinlady.net/PluginDetect/JavaTester/",
+                "../files/",
+                "getJavaInfo.jar",
+                "Java Plugin Verification",
+                "width=350;height=80;posx=8.0000;posy=163.0000;scriptable=true;codebase_lookup=false;mayscript=true;plugindetect",
+                "A"));*/
+        controller.processLoadAppletOp(Arrays.asList("load_applet",
+                "https://areo.info/mpf/",
+                ".",
+                "imagefinder.jar",
+                "Pathfinder ImageFinder Apple",
+                "width=630;height=550;posx=8.0000;posy=163.0000;case=lower;cd1=data/cdrom1;cd2=data/cdrom2;cd3=data/cdrom3",
+                "ImageFinder.class"));
     }
 }

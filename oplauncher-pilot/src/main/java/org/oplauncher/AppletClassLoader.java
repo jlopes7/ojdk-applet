@@ -74,7 +74,10 @@ public class AppletClassLoader extends AbstractAppletClassLoader<String> {
         catch (Throwable t) {
             LOGGER.error("An error occurred while loading the applet", t);
             SplashScreen.instance.closeSplash();
-            JOptionPane.showMessageDialog(null, "An error occurred: " + t.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+
+            SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(null, "An error occurred: " + t.getMessage(), "Error", JOptionPane.ERROR_MESSAGE)
+            );
             throw t;
         }
     }

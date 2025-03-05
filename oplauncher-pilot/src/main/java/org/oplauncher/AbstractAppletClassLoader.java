@@ -1,6 +1,7 @@
 package org.oplauncher;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.logging.log4j.LogManager;
@@ -8,15 +9,15 @@ import org.apache.logging.log4j.Logger;
 import org.oplauncher.res.FileResource;
 import org.oplauncher.res.HttpSessionResourceRequest;
 import org.oplauncher.res.ResourceRequestFactory;
+import sun.nio.ch.IOUtil;
 
 import static java.util.Optional.ofNullable;
 import static org.oplauncher.CommunicationParameterParser.IDX_RESURL;
+import static org.oplauncher.res.FileResource.ResourceType.CLASS_FILE;
+import static org.oplauncher.res.FileResource.ResourceType.ZIP_FILE;
 import static org.oplauncher.res.ResourceType.*;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -215,7 +216,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                     FileResource res = getResourceByName(name);
                     Class<?> klass = null;
 
-                    if (res != null && res.getResourceType() == FileResource.ResourceType.CLASS_FILE) {
+                    if (res != null && ( res.getResourceType() == CLASS_FILE || res.getResourceType() == ZIP_FILE )) {
                         type = ArchiveClassLoaderType.SIMPLE;
                     }
 
@@ -326,7 +327,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
                         defineClass(className, clzb, 0, clzb.length);
                     }
                     catch (Throwable t) {
-                        LOGGER.error(String.format("Failed to load class [%s]", className), t);
+                        LOGGER.error("Failed to load class [{}}]", className, t);
                     }
                 });
     }
@@ -355,27 +356,38 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
         ArchiveClassLoaderType type = ConfigurationHelper.getArchiveClassLoaderType();
         switch (type) {
             case URL: {
-                final List<URL> urls = new ArrayList<>();
                 try (Stream<Path> paths = Files.walk(zipPath.toPath())) {
                     paths.forEach(path -> {
                         try {
                             BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
                             if (!attrs.isDirectory()) {
-                                if (LOGGER.isDebugEnabled()) {
-                                    LOGGER.debug("(loadZip) +-> Adding resource to the URL classloder list: [{}]", path.toFile().getAbsolutePath());
-                                }
+                                File klassFile = path.toFile();
+                                String ext = FilenameUtils.getExtension(klassFile.getName());
+                                if ( ext.trim().toLowerCase().endsWith("class") ) {
+                                    int endIndex = klassFile.getName().indexOf(".class", 0);
+                                    String klassName = klassFile.getName().substring(0, endIndex);
+                                    if (LOGGER.isDebugEnabled()) {
+                                        LOGGER.debug("(loadZip) +-> Adding resource to the classloder list: [{}] -> Class[{}]", path.toFile().getAbsolutePath(), klassName);
+                                    }
 
-                                _fileMap.put(path.toFile().getName(), FileResource.ofResource(path.toFile()));
-                                urls.add(path.toFile().toURI().toURL());
+                                    _fileMap.put(klassFile.getName(), FileResource.ofResource(klassFile));
+
+                                    if (LOGGER.isInfoEnabled()) {
+                                        LOGGER.info("Loading resource [{}] from Zip [{}]", klassFile.getAbsolutePath(), zipPath.getAbsolutePath());
+                                    }
+
+                                    byte b[] = IOUtils.toByteArray(Files.newInputStream(path));
+                                    defineClass(klassName, b, 0, b.length);
+                                }
+                                else {
+                                    LOGGER.warn("The resource in the ZIP file [{}] was not loaded because in the current version only classes are loaded into the ClassPath: {}", zipPath.getAbsolutePath(), klassFile.getAbsolutePath());
+                                }
                             }
                         }
                         catch (IOException ioex) {
                             LOGGER.warn("Could not load URL classloader from the Zip file: {}", path, ioex);
                         }
                     });
-
-                    // Create the URL class loader
-                    _urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]));
                 }
                 break;
             }
@@ -419,7 +431,7 @@ public abstract class AbstractAppletClassLoader<T> extends ClassLoader implement
             throw new IOException(String.format("Could not find a class resource associated with the following class: [%s]", path));
         }
 
-        if (res.getResourceType() == FileResource.ResourceType.CLASS_FILE) {
+        if (res.getResourceType() == CLASS_FILE) {
             Path classPath = Paths.get(res.getTempClassPath().getPath(), path);
             return Files.readAllBytes(classPath);
         }

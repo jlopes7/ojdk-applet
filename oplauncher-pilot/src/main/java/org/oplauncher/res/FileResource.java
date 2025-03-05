@@ -39,10 +39,10 @@ public class FileResource {
         String filename = maskedFile.getName();
 
         setMaskedFile(maskedFile)
-                .setFileHash(filename)
-                .setTempClassPath(createTempDirectory())
-                // unmask the file
-                .unmaskFile();
+            .setFileHash(filename)
+            .setTempClassPath(createTempDirectory())
+            // unmask the file
+            .unmaskFile();
     }
     private FileResource() {}
 ;
