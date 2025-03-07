@@ -9,6 +9,7 @@ let OPResources = {
     OP_FOCUS: "focus_applet",
     OP_MOVE: "move_applet",
     OP_CLEAR_EVT: "clear_events",
+    OP_INVOKE_METHOD: "method_invoke_applet",
 
     NATIVE_SERVICE: "org.oplauncher.applet_service",
     OPLAUNCHER_RESPONSE_CODE: "oplauncher_applet_response",
@@ -29,6 +30,13 @@ let OPResources = {
 
     JAVA_MIME_TYPE: "application/x-java-applet",
 
+    EVT_MESSAGE: "message",
+    EVT_REGISTER_APPLET_RES: "evt_register-applet_res",
+    EVT_REGISTER_APPLET_REQ: "evt_register-applet_req",
+    EVT_REGISTER_APPLET_BACK_REQ: "evt_register-applet_back_req",
+    EVT_REGISTER_APPLET_BACK_RES: "evt_register-applet_back_res",
+    EVT_DOCAPPLET_IS_READY: "evt_document-applet_ready",
+
     DEFAULT_APP_TOKEN: "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT",
 
     PIPE_STDOUT: "pip_stdout",
@@ -46,6 +54,31 @@ let OPResources = {
     /* Default 3DES key */
     DES3_DEF_KEY: "oFcwe0uR6plrVa1eQJljTiqb10clfGaH"
 };
+
+let _afterHeadCBList = new Array();
+function addHeadCBCallback(cb) {
+    if (cb) _afterHeadCBList.push(cb);
+}
+
+/**
+ * Asynchronous function to be called after the head element is finally inserted into the HTML DOM
+ */
+let _uniqueCall = true;
+async function afterHeadDispatcher() {
+    const head = document.head || document.getElementsByTagName("head")[0];
+    if (!head) {
+        // If <head> is not ready, retry in 10ms
+        return setTimeout(afterHeadDispatcher, 10);
+    }
+
+    if (_uniqueCall) {
+        _uniqueCall = !_uniqueCall;
+        // Trigger all the functions
+        for (const cb of _afterHeadCBList) {
+            if (cb) cb();
+        }
+    }
+}
 
 // Gate switch based on where the script is loaded from
 if (typeof window !== "undefined") {

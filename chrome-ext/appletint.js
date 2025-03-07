@@ -3,7 +3,7 @@
  * @param callback	the function function after all resources are loaded into DOM
  */
 function loadDeps(callback) {
-	if (typeof window.OPResources !== "undefined") {
+	if (typeof window.OPResources !== "undefined" ) {//&& document.applet) {
 		if (callback) callback();
 	}
 	else {
@@ -19,6 +19,88 @@ const registeredAppletList = new Array();
 
 let frame_count = 0;
 let firstAppletLoaded = true;
+
+/**
+ * Wait until the head section of the HTML is loaded to register all
+ * the applets together
+ * @param timeout
+ * @param interval
+ * @returns {Promise<DOMElement>}
+ */
+function waitForHead(timeout = 5000, interval = 50) {
+	return new Promise((resolve, reject) => {
+		const startTime = Date.now();
+
+		function checkHead() {
+			if (document.head) {
+				resolve(document.head); // `<head>` is available
+				return;
+			}
+			if (Date.now() - startTime > timeout) {
+				reject(new Error("Timeout: head section not found!"));
+				return;
+			}
+
+			setTimeout(checkHead, interval); // Retry after `interval` ms
+		}
+
+		checkHead(); // Start checking
+	});
+}
+
+/**
+ * Await until the `document.applet` object is available from the DOM
+ * @param timeout
+ * @returns {Promise<{registerApplet}|*|{}|null>}
+ */
+function waitForDocumentApplet(appletName, options, timeout = 5000) {
+	return new Promise((resolve, reject) => {
+		const startTime = Date.now();
+
+		function onDocumentAppletReady(event) {
+			if (event.source !== window || event.data.type !== OPResources.EVT_DOCAPPLET_IS_READY) return;
+
+			window.removeEventListener(OPResources.EVT_MESSAGE, onDocumentAppletReady);
+
+			registerAppletFromContentScript(appletName, options).then(resolve).catch(reject);
+		}
+
+		// Listen for `document.applet` ready message
+		window.addEventListener(OPResources.EVT_MESSAGE, onDocumentAppletReady);
+
+		// Fallback timeout in case the event never fires
+		setTimeout(() => {
+			window.removeEventListener(OPResources.EVT_MESSAGE, onDocumentAppletReady);
+			reject(new Error("Timeout waiting for document.applet"));
+		}, timeout);
+	});
+}
+/**
+ * Sends a message to `applet.js` to register the applet
+ */
+function registerAppletFromContentScript(appletName, options = {}) {
+	return new Promise((resolve, reject) => {
+		console.info(`Requesting to register the applet into (applet.js): ${appletName} => ${options}`);
+
+		window.postMessage({
+			type: OPResources.EVT_REGISTER_APPLET_BACK_REQ,
+			appletName,
+			options
+		}, "*");
+
+		window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
+			if (event.data.type !== OPResources.EVT_REGISTER_APPLET_BACK_RES) return;
+
+			if (event.data.appletName) {
+				resolve(event.data.appletName);
+			}
+			else {
+				reject(new Error("(applet.js) Applet could not be registered!"));
+			}
+		});
+	});
+}
+
 
 /* ===========================================================
  	HTML CONTENT FOR THE APPLET IFRAME
@@ -55,12 +137,14 @@ document.addEventListener("DOMContentLoaded", () => {
 	 * Dynamically load all the dependent resources before executing
 	 */
 	loadDeps(() => {
+		console.info("The JS API for 'document.applet' is loaded successfully", document.applet);
 		console.info("Resources loaded successfully:", OPResources);
 
 		console.info("Looking for Applet entries in the page...");
 		const applets = document.querySelectorAll("applet");
 		const appletObjs = document.querySelectorAll("object");
 		const embededObjs = document.querySelectorAll("embed");
+		const appletInstanceList = new Array();
 
 		console.info("Processing the Applet tags...");
 		applets.forEach((appletEl) => {
@@ -71,6 +155,9 @@ document.addEventListener("DOMContentLoaded", () => {
 			const appletName = appletEl.getAttribute("name") || genRandomAppletName(16);
 			const width = appletEl.getAttribute("width") || 0;
 			const height = appletEl.getAttribute("height") || 0;
+
+			// register the Applet instance
+			appletInstanceList.push(appletName);
 
 			// Extract applet parameters and format them as "key1=value1;key2=value2"
 			let paramArray = [];
@@ -98,6 +185,9 @@ document.addEventListener("DOMContentLoaded", () => {
 					width=objectEl.getAttribute("width") || 0,
 					height=objectEl.getAttribute("height") || 0;
 				console.info("Found an applet to be processed in the Object element!");
+
+				// register the Applet instance
+				appletInstanceList.push(appletName);
 
 				let additionalParams = new Array();
 				const obParams = objectEl.querySelectorAll("param");
@@ -142,6 +232,9 @@ document.addEventListener("DOMContentLoaded", () => {
 					height = embedEl.getAttribute("height") || 0;
 				console.info("Found an applet to be processed in the Embed element!");
 
+				// register the Applet instance
+				appletInstanceList.push(appletName);
+
 				let additionalParams = new Array();
 				// TODO: For now, additional parameters are not processed parameters are not processed
 
@@ -155,6 +248,22 @@ document.addEventListener("DOMContentLoaded", () => {
 				console.warn("Embed element is not an Applet definition:", embedEl);
 			}
 		});
+
+		// Wait for document.applet to load the applets into the page basecode
+		waitForHead(10000).then((headEl) => {
+			appletInstanceList.forEach((appletName) => {
+				// Triggers after the head element is loaded
+				afterHeadDispatcher();
+
+				console.info("Header element is defined succesfully! Registering all the applets...", headEl);
+
+				// Wait for `document.applet` before calling `registerApplet()`
+				waitForDocumentApplet(appletName, {}).then((appletName) => {
+					console.info(`(applet.js) Applet ${appletName} REGISTERED!`);
+				}).catch(console.error);
+			});
+		}).catch(console.error);
+
 		// TODO: Additional operations go here!
 	});
 });
