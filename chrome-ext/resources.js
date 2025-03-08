@@ -36,6 +36,8 @@ let OPResources = {
     EVT_REGISTER_APPLET_BACK_REQ: "evt_register-applet_back_req",
     EVT_REGISTER_APPLET_BACK_RES: "evt_register-applet_back_res",
     EVT_DOCAPPLET_IS_READY: "evt_document-applet_ready",
+    EVT_INVOKE_APPLET_REQ: "evt_invoking-applet_req",
+    EVT_INVOKE_APPLET_RES: "evt_invoking-applet_res",
 
     DEFAULT_APP_TOKEN: "9C7vzyfe7gU+U$MaM*WQ2:nJQycR%?bT",
 

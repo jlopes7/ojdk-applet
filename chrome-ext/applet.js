@@ -17,7 +17,9 @@ const OPResources = {
     EVT_REGISTER_APPLET_BACK_REQ: "evt_register-applet_back_req",
     EVT_REGISTER_APPLET_BACK_RES: "evt_register-applet_back_res",
     EVT_REGISTER_APPLET_REQ: "evt_register-applet_req",
-    EVT_DOCAPPLET_IS_READY: "evt_document-applet_ready"
+    EVT_DOCAPPLET_IS_READY: "evt_document-applet_ready",
+    EVT_INVOKE_APPLET_REQ: "evt_invoking-applet_req",
+    EVT_INVOKE_APPLET_RES: "evt_invoking-applet_res"
 };
 
 (function() {
@@ -74,9 +76,11 @@ const OPResources = {
                     console.info(`Applet ${name} registered successfully. Request ${event.data.requestId}`);
                     console.log("Registering the Applet instance from", requestId, event.data.appletObject);
 
-                    document.applets.push(event.data.appletObject);
-                    document.applet[event.data.appletName] = event.data.appletObject;
-                    resolve(event.data.appletObject);
+                    let appletStub = new AppletInstanceStub(event.data.appletName, event.data.options);
+
+                    document.applets.push(appletStub);
+                    document.applet[event.data.appletName] = appletStub;
+                    resolve(appletStub);
                 }
             }
 
@@ -86,9 +90,9 @@ const OPResources = {
             // Send request to content script
             window.postMessage({
                 type: OPResources.EVT_REGISTER_APPLET_REQ,
-                requestId,
+                requestId: requestId,
                 appletName: name,
-                options
+                options: options
             }, "*");
         });
     };
@@ -96,3 +100,92 @@ const OPResources = {
     // Notify content scripts that `document.applet` is ready
     window.postMessage({ type: OPResources.EVT_DOCAPPLET_IS_READY }, "*");
 })();
+
+class AppletInstanceStub {
+    constructor(name, options) {
+        this.name = name;
+        this.options = options;
+
+        return new Proxy(this, {
+            get: (target, prop) => {
+                if (prop in target) {
+                    return target[prop]; // Return existing properties
+                }
+
+                // Create dynamic method for undefined properties
+                return (...args) => this._invoke$(prop, ...args);
+            }
+        });
+    }
+
+    /**
+     * Simulates a synchronous call by blocking execution
+     */
+    async _invoke$(method, ...args) {
+        const safeArgs = new Array();
+
+        // Convert only primitive types as arguments, no objects!
+        args.forEach((arg) => {
+            if ( typeof arg !== "function" ) {
+                safeArgs.push(arg);
+            }
+        });
+
+        const resp = await this.invoke(method, safeArgs);
+
+        console.info("Got a response from OPLauncher for the method (%s) execution: %s", method, resp);
+
+        return resp;
+    }
+    invoke(method, safeArgs) {
+        const requestId = `${this.name}-invoke_${method}-${Date.now()}`;
+        const startTime = Date.now();
+        let response = null;
+        let endWait = false;
+
+        // Async response...
+        return new Promise((resolve, reject) => {
+            function responseHandler(event) {
+                if (event.data.type !== OPResources.EVT_INVOKE_APPLET_RES || event.data.requestId !== requestId) {
+                    return;
+                }
+
+                window.removeEventListener(OPResources.EVT_MESSAGE, responseHandler);
+
+                response = event.data.response;
+                endWait = true;
+
+                if (event.data.error) {
+                    reject(new Error(`Applet remote execution (${method}) error: ${event.data.error}`));
+                }
+                else {
+                    resolve(event.data.methodResp);
+                }
+            }
+
+            // isten for response from `appletint.js`
+            window.addEventListener(OPResources.EVT_MESSAGE, responseHandler);
+
+            console.info("Remote Method Call --> arguments:", safeArgs);
+            // Send request to `appletint.js`
+            window.postMessage({
+                type: OPResources.EVT_INVOKE_APPLET_REQ,
+                requestId: requestId,
+                appletName: this.name,
+                options: this.options,
+                method: method,
+                arguments: safeArgs
+            }, "*");
+
+            /// Control the timeout to wait for a response (5 seconds is more than enough time)
+            function factCheck() {
+                if (Date.now() - startTime > 5000 && !endWait) {
+                    endWait = true;
+                    reject(new Error(`Applet method (${method}) timeout. No response from OPLauncher proxy.`));
+                }
+                else if (!endWait) setTimeout(factCheck, 10);
+            }
+            factCheck();
+        });
+    }
+}

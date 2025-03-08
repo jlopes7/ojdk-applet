@@ -3,24 +3,42 @@ let _appletInstances = new Array();
  * Listen for registration requests from `applet.js`
  */
 window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
-    if ( event.data.type !== OPResources.EVT_REGISTER_APPLET_REQ ) return;
+    console.info("===> OPlauncher JS Engine received a DOM event: ", event.data.type);
 
-    const { requestId, appletName, options } = event.data;
+    /// Process all the events...
+    if ( event.data.type == OPResources.EVT_REGISTER_APPLET_REQ ) {
+        const {requestId, appletName, options} = event.data;
+        console.info("About to process the applet from the request(%s): %s", requestId, appletName);
 
-    console.info("About to process the applet from the request(%s): %s", requestId, appletName);
+        // Store the applet in document.applets
+        let applet = new AppletInstance(appletName, options);
+        _appletInstances.push(applet);
 
-    // Store the applet in document.applets
-    let applet = new AppletInstance(appletName, options);
-    _appletInstances.push(applet);
+        // Send confirmation back to `applet.js`
+        window.postMessage({
+            type: OPResources.EVT_REGISTER_APPLET_RES,
+            requestId: requestId,
+            appletName: appletName,
+            options: options,
+            success: true
+        }, "*");
+    }
+    else if ( event.data.type == OPResources.EVT_INVOKE_APPLET_REQ ) {
+        let methodResponse = true;
+        const {requestId, appletName, method, arguments} = event.data;
 
-    // Send confirmation back to `applet.js`
-    window.postMessage({
-        type: OPResources.EVT_REGISTER_APPLET_RES,
-        appletObject: applet,
-        appletName: appletName,
-        requestId: requestId,
-        success: true
-    }, "*");
+        console.info("About to process the invoke function from the request(%s): %s", requestId, appletName);
+
+        // TODO: Implement
+        // Send confirmation back to `applet.js`
+        window.postMessage({
+            type: OPResources.EVT_INVOKE_APPLET_RES,
+            requestId: requestId,
+            appletName: appletName,
+            methodResp: methodResponse,
+            success: true
+        }, "*");
+    }
 });
 
 /**
