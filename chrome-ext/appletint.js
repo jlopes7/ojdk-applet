@@ -27,7 +27,7 @@ let firstAppletLoaded = true;
  * @param interval
  * @returns {Promise<DOMElement>}
  */
-function waitForHead(timeout = 5000, interval = 50) {
+function waitForHead(timeout = OPResources.MAX_WAIT_TIMEOUT_MILLIS, interval = 50) {
 	return new Promise((resolve, reject) => {
 		const startTime = Date.now();
 
@@ -53,7 +53,7 @@ function waitForHead(timeout = 5000, interval = 50) {
  * @param timeout
  * @returns {Promise<{registerApplet}|*|{}|null>}
  */
-function waitForDocumentApplet(appletName, options, timeout = 5000) {
+function waitForDocumentApplet(appletName, options, timeout = OPResources.MAX_WAIT_TIMEOUT_MILLIS) {
 	return new Promise((resolve, reject) => {
 		const startTime = Date.now();
 
@@ -415,30 +415,6 @@ function getCookies(callback) {
 	});
 }
 
-/**
- * Sends an unload message to the port, so the JVM could be disconnected
- * successfully
- */
-function sendUnloadMessageToBackgroundPort() {
-	// Dispatch the event for all applets
-	registeredAppletList.forEach(entry => {
-		console.warn("Unloading the Applet from the backend", entry);
-		dispatchToBackground({
-			op: OPResources.OP_UNLOAD,
-			applet_name: entry.appletName,
-		});
-	});
-
-	for (let i=0 ; i < frame_count ; i++) {
-		let iframe = document.getElementById(getAppletIFrameID(i));
-		if (iframe) {
-			iframe.contentDocument.getElementById("status").innerHTML = 'OJDK Applet Launcher unloaded.';
-		}
-	}
-
-	return true;
-}
-
 function genRandomAppletName(size) {
 	const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 	let result = '';
@@ -486,22 +462,6 @@ function sendBlurFocusMessageToBackgroundPort(visible, lowVisibility) {
 	});
 
 	return true;
-}
-
-/**
- * Dispatch custom requests to Chrome's beckend framework
- * @param commMsg	the JSON message to be sent to the backend
- */
-function dispatchToBackground(commMsg) {
-	console.info("About to send the following request to Chrome's backend framework", commMsg);
-	chrome.runtime.sendMessage(commMsg, (resp) => {
-		if (chrome.runtime.lastError) {
-			console.warn(`OP failed ${resp}`);
-		}
-		else {
-			console.info("OP sent successfully:", resp);
-		}
-	});
 }
 
 /**

@@ -1,4 +1,15 @@
 let _appletInstances = new Array();
+
+function isPartOfExclusionMethods(methodName) {
+    const notAllowedMethods = ['then', 'catch', 'isPlugin2'];
+
+    for (let currMethodName of notAllowedMethods) {
+        if ( methodName === currMethodName ) return true;
+    }
+
+    return false;
+}
+
 /**
  * Listen for registration requests from `applet.js`
  */
@@ -24,21 +35,116 @@ window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
         }, "*");
     }
     else if ( event.data.type == OPResources.EVT_INVOKE_APPLET_REQ ) {
-        let methodResponse = true;
+        let methodResponse = null;
+        let opCallTime = Date.now();
+        let continueProcessing = true;
+        let foundApplet = false;
         const {requestId, appletName, method, arguments} = event.data;
 
-        console.info("About to process the invoke function from the request(%s): %s", requestId, appletName);
+        console.info("About to process the invoke function(%s) from the request(%s): %s", method, requestId, appletName);
 
-        // TODO: Implement
-        // Send confirmation back to `applet.js`
-        window.postMessage({
-            type: OPResources.EVT_INVOKE_APPLET_RES,
-            requestId: requestId,
-            appletName: appletName,
-            methodResp: methodResponse,
-            success: true
-        }, "*");
+        function sendMessageBack2View(data) {
+            // Send confirmation back to `applet.js`
+            window.postMessage({
+                type: OPResources.EVT_INVOKE_APPLET_RES,
+                requestId: data.requestId,
+                appletName: data.appletName,
+                methodResp: data.methodResponse,
+                success: true
+            }, "*");
+        }
+
+        /// Some methods are not remote methods
+        if ( isPartOfExclusionMethods(method) ) {
+            let data = {
+                requestId: requestId,
+                appletName: appletName,
+            }
+            if ( method === "isPlugin2") {
+                Object.assign(data, {
+                    methodResponse: false
+                });
+            }
+
+            sendMessageBack2View(data);
+        }
+        else {
+            /**
+             * Execute the method proxY!
+             */
+            function executeMethodProxy() {
+                console.info("About to send the event data to the backend port", event.data);
+                sendToRemoteBackgroundPort(event.data, OPResources.OP_INVOKE_METHOD).then((response) => {
+                    if (continueProcessing) {
+                        methodResponse = response.methodResponse;
+                        console.info("Got a response from the backend port for the method invocation", methodResponse);
+                    } else {
+                        console.warn("A response was received by the backend port, but it too long to process it so it will be ignored. This could happen due to a latency in the network. The maximun waiting time for method processing is 5s.", response);
+                        console.warn("Nothing was changed");
+                    }
+                }).catch(console.error);
+            }
+
+
+            // Searching for the Applet class definition
+            for (applet of _appletInstances) {
+                if (applet.name === appletName) {
+                    console.info("Applet class instance found", applet);
+                    foundApplet = true;
+
+                    if (method === "isActive") methodResponse = applet.isActive();
+                    else if (method === "getVersion") methodResponse = applet.getVersion();
+                    else if (method === "getVendor") methodResponse = applet.getVendor();
+                    else if (method === "getAppVersion") methodResponse = applet.getAppVersion();
+                    else if (method === "getProp") methodResponse = applet.getProp(arguments[0]);
+                    else if (method === "statusbar") methodResponse = applet.statusbar(arguments[0]);
+                    else {
+                        executeMethodProxy();
+                    }
+                    break;
+                }
+            }
+            if (!foundApplet) {
+                console.warn(`No applet (${appletName}) found in cache. Running manually (${method})`);
+                _appletInstances.push(new AppletInstance(appletName, {}));
+
+                executeMethodProxy();
+            }
+
+            /**
+             * Await until a response is produced from OPLauncher or a timeout is reached (5s)
+             */
+            async function awaitForMethodResponse() {
+                function controlResponse() {
+                    let currTime = Date.now();
+
+                    if (methodResponse === null) {
+                        if (Date.now() - opCallTime > OPResources.MAX_WAIT_TIMEOUT_MILLIS) {
+                            continueProcessing = false;
+                            console.error(`The maximum timeout was reached ${OPResources.MAX_WAIT_TIMEOUT_MILLIS}ms and no response was provided back from the backend port`)
+                        } else setTimeout(awaitForMethodResponse, 10);
+                    }
+                    /// Success !!
+                    else {
+                        console.info("Consolidated response from the Applet DOM Controller", methodResponse);
+                        sendMessageBack2View({
+                            requestId: requestId,
+                            appletName: appletName,
+                            methodResp: methodResponse,
+                        });
+
+                        continueProcessing = false;
+                    }
+                }
+
+                await controlResponse();
+            }
+
+            awaitForMethodResponse();
+        }
     }
+
+    return true;
 });
 
 /**

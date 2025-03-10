@@ -42,6 +42,7 @@ function isConnSwitchActive() {
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.info(`OP selected: ${message.op}. Message:`, message);
+    // Load all saved cookies found in the given URL
     if (message.op === OPResources.OP_COOKIES) {
         chrome.cookies.getAll({ url: message.url }, (cookies) => {
             if (chrome.runtime.lastError) {
@@ -58,6 +59,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         return true;
     }
+    // Load the applets
     else if (message.op === OPResources.OP_LOAD) {
         console.info("About to load the OJDK Applet Launcher for the applet:", message.appletName);
 
@@ -184,6 +186,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.error("Incorrect PIPE configuration [%s]. No changes were applied to the system", message.pipecfn);
         }
     }
+    // Unload the applets in the page
     else if (message.op === OPResources.OP_UNLOAD) {
         console.info("About to unload the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
@@ -191,6 +194,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse ( resp );
         });
     }
+    // Blur the applet based on a Window change
     else if (message.op === OPResources.OP_BLUR) {
         console.info("About to blur the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
@@ -198,6 +202,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse ( resp );
         });
     }
+    // Focus the applet based on a Window change
     else if (message.op === OPResources.OP_FOCUS) {
         console.info("About to focus the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
@@ -205,12 +210,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse ( resp );
         });
     }
+    // Cause the applet canvas to move in the screen
     else if (message.op === OPResources.OP_MOVE) {
         console.info("About to move the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
             console.info("Got a response back from the 'move' OP from the OPLauncher", resp);
             sendResponse ( resp );
         })
+    }
+    // Invoke a remote applet method call
+    else if (message.op === OPResources.OP_INVOKE_METHOD) {
+        console.info("About to invoke an Applet method using the OJDK Applet Launcher");
     }
     else {
         console.warn(`OP selected no supported: ${message.op} . Expected OPs: ${OPResources.OP_LOAD}, ${OPResources.OP_UNLOAD}, ${OPResources.OP_MOVE}, ${OPResources.OP_BLUR}, ${OPResources.OP_FOCUS}`);

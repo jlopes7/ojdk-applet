@@ -46,6 +46,7 @@ let OPResources = {
     PREFERED_PIPE: "pip_rest",
 
     DEFAULT_MAGICNUM: 0x22E09,
+    MAX_WAIT_TIMEOUT_MILLIS: 5000,
 
     ALARM_SERVER_HB: "hbCheck",
     HB_CTXROOT: "oplauncher-hb",

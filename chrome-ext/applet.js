@@ -152,6 +152,7 @@ class AppletInstanceStub {
 
                 window.removeEventListener(OPResources.EVT_MESSAGE, responseHandler);
 
+                console.info("Got a response from JS Applet controller", event.data);
                 response = event.data.response;
                 endWait = true;
 
