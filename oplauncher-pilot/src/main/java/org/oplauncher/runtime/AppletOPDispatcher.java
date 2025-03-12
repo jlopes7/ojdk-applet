@@ -1,6 +1,5 @@
 package org.oplauncher.runtime;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.DecoderException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -8,8 +7,7 @@ import org.oplauncher.*;
 import org.oplauncher.op.OPMessage;
 import org.oplauncher.op.OPPayload;
 import org.oplauncher.op.OPPlainPayload;
-import org.oplauncher.op.OPSecurePayload;
-import org.oplauncher.runtime.secur.SecurityManager;
+import org.oplauncher.runtime.secur.PayloadParserSecurityHelper;
 
 import static org.oplauncher.ErrorCode.*;
 import static org.oplauncher.OpCode.*;
@@ -111,18 +109,7 @@ public class AppletOPDispatcher {
         try {
             OPPlainPayload payload;
             if (ConfigurationHelper.isSecurePayloadActive()) {
-                OPSecurePayload securePayload = (OPSecurePayload) message.getPayload();
-                String encPayload = securePayload.getPayload();
-                String encKey = ConfigurationHelper.getCipherKey();
-                String decPayload = SecurityManager.getCipherProcessor().decryptPayload(encPayload, encKey);
-                if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info("Processing secure payload...");
-                    LOGGER.info("Secure payload received from the Chrome extension: {}", encPayload);
-                    LOGGER.info("Secure payload deciphered from the Chrome extension: {}", decPayload);
-                }
-
-                ObjectMapper objectMapper = new ObjectMapper();
-                payload = objectMapper.readValue(decPayload, OPPlainPayload.class);
+                payload = PayloadParserSecurityHelper.decodeSecuredPayload(message);
             }
             else {
                 LOGGER.info("Using plain payload, no security implemented");

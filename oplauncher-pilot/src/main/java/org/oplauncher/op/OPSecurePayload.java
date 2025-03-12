@@ -16,6 +16,10 @@ public class OPSecurePayload implements OPPayload {
         return Optional.ofNullable(_msgsize).orElse(0);
     }
 
+    public boolean isSyncedResponse() {
+        return _syncResponse;
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("Payload: {")
@@ -23,7 +27,9 @@ public class OPSecurePayload implements OPPayload {
                 .append(getPayload())
                 .append("\",\"msz\"=\"")
                 .append(getMessageSize())
-                .append("\"}");
+                .append("\",\"syncresp\"=")
+                .append(isSyncedResponse())
+                .append("}");
 
         return sb.toString();
     }
@@ -33,4 +39,6 @@ public class OPSecurePayload implements OPPayload {
     private String _payload;
     @JsonProperty("msz")
     private Integer _msgsize;
+    @JsonProperty("syncresp")
+    private boolean _syncResponse;
 }

@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.oplauncher.ConfigurationHelper;
 import org.oplauncher.OPLauncherException;
+import org.oplauncher.op.reflection.AppletMethodProxy;
 
 import java.io.IOException;
 
@@ -32,6 +33,8 @@ public class OPHttpHandler<P extends OPPayload> extends OPHandler<P> {
                 LOGGER.info("Received a request from the client /{} ", getClientIp(httpContext));
             }
             if (request instanceof HttpEntityEnclosingRequest) {
+                OPResponse response = new OPResponse(SUCCESS_RESPONSE, true, NO_PROP_CODE);
+
                 // Parse the JSON payload
                 HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
                 String json = EntityUtils.toString(entity);
@@ -44,8 +47,26 @@ public class OPHttpHandler<P extends OPPayload> extends OPHandler<P> {
                 if (ConfigurationHelper.isSecurePayloadActive()) {
                     payload = getJSONObjectMapper().readValue(json, OPSecurePayload.class);
                     OPMessage<OPSecurePayload> message = new OPMessage<>((OPSecurePayload) payload);
-                    ///  trigger the execution of all registered observables for new requests
-                    getOpServerRef().triggerSuccessCallbacks((OPMessage<P>) message);
+
+                    ///  trigger the execution of all registered observables for new requests based on async/sync config
+                    if ( !((OPSecurePayload) payload).isSyncedResponse() ) {
+                        getOpServerRef().triggerSuccessCallbacks((OPMessage<P>) message);
+                    }
+                    // Synchronous processing ...
+                    else {
+                        try {
+                            AppletMethodProxy<OPSecurePayload> proxy = new AppletMethodProxy<>(message, (OPHandler<OPSecurePayload>) this);
+                            response = proxy.invoke();
+                        }
+                        catch (Exception e) {
+                            LOGGER.error("Failed to invoke the Applet method", e);
+                            response.setUnsuccess()
+                                    .setMessage(e.getMessage())
+                                    .setErrorCode((e instanceof OPLauncherException) ?
+                                                    ((OPLauncherException) e).getErrorCode().code() :
+                                                    APPLET_EXECUTION_ERROR.code());
+                        }
+                    }
                 }
                 else {
                     payload = getJSONObjectMapper().readValue(json, OPPlainPayload.class);
@@ -54,7 +75,6 @@ public class OPHttpHandler<P extends OPPayload> extends OPHandler<P> {
                     getOpServerRef().triggerSuccessCallbacks((OPMessage<P>) message);
                 }
 
-                OPResponse response = new OPResponse(SUCCESS_RESPONSE, true, NO_PROP_CODE);
                 // process the response
                 processResponse(response, httpExchange);
             }

@@ -103,7 +103,7 @@ public abstract class OPHandler<P extends OPPayload> implements HttpAsyncRequest
         return new BasicAsyncRequestConsumer();
     }
 
-    protected HttpOPServer<P> getOpServerRef() {
+    public HttpOPServer<P> getOpServerRef() {
         return _opserver;
     }
 

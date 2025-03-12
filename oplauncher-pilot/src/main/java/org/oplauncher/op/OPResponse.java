@@ -12,7 +12,7 @@ public class OPResponse {
         _errorCode = rc;
     }
 
-    protected String getMessage() {
+    public String getMessage() {
         return _message;
     }
     public boolean isSuccess() {
@@ -20,6 +20,23 @@ public class OPResponse {
     }
     public int getErrorCode() {
         return _errorCode;
+    }
+
+    protected OPResponse setUnsuccess() {
+        _success = false;
+        return this;
+    }
+    protected OPResponse setSuccess() {
+        _success = true;
+        return this;
+    }
+    protected OPResponse setErrorCode(int rc) {
+        _errorCode = rc;
+        return this;
+    }
+    protected OPResponse setMessage(String msg) {
+        _message = msg;
+        return this;
     }
 
     // class properties
