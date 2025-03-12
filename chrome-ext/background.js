@@ -178,7 +178,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.info("Parsed message payload for(%s) OPLauncher: ", message.appletName, payload);
 
             send2OPLauncherJSONPort(payload, (resp, port) => {
-                console.info("Got a response back from the 'unload' OP from the OPLauncher", resp);
+                console.info("Got a response back from the 'unload' OP from OPLauncher", resp);
                 sendResponse ( resp );
             });
         }
@@ -190,7 +190,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.op === OPResources.OP_UNLOAD) {
         console.info("About to unload the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
-            console.info("Got a response back from the 'unload' OP from the OPLauncher", resp);
+            console.info("Got a response back from the 'unload' OP from OPLauncher", resp);
             sendResponse ( resp );
         });
     }
@@ -198,7 +198,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.op === OPResources.OP_BLUR) {
         console.info("About to blur the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
-            console.info("Got a response back from the 'blur' OP from the OPLauncher", resp);
+            console.info("Got a response back from the 'blur' OP from OPLauncher", resp);
             sendResponse ( resp );
         });
     }
@@ -206,7 +206,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.op === OPResources.OP_FOCUS) {
         console.info("About to focus the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
-            console.info("Got a response back from the 'focus' OP from the OPLauncher", resp);
+            console.info("Got a response back from the 'focus' OP from OPLauncher", resp);
             sendResponse ( resp );
         });
     }
@@ -214,13 +214,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.op === OPResources.OP_MOVE) {
         console.info("About to move the OJDK Applet Launcher");
         send2OPLauncherJSONPort(message, (resp, port) => {
-            console.info("Got a response back from the 'move' OP from the OPLauncher", resp);
+            console.info("Got a response back from the 'move' OP from OPLauncher", resp);
             sendResponse ( resp );
         })
     }
     // Invoke a remote applet method call
     else if (message.op === OPResources.OP_INVOKE_METHOD) {
         console.info("About to invoke an Applet method using the OJDK Applet Launcher");
+        send2OPLauncherJSONPort(message, (resp, port) => {
+            console.info("Got a response back from the 'method invocation' OP from OPLauncher", resp);
+            sendResponse ( resp );
+        }, (error)=> {
+            sendResponse ({
+                success: false,
+                error: error,
+                message: error.message,
+            });
+        });
     }
     else {
         console.warn(`OP selected no supported: ${message.op} . Expected OPs: ${OPResources.OP_LOAD}, ${OPResources.OP_UNLOAD}, ${OPResources.OP_MOVE}, ${OPResources.OP_BLUR}, ${OPResources.OP_FOCUS}`);
@@ -307,6 +317,7 @@ function send2OPLauncherJSONPort(messageToNative, callback, callbackErr) {
     }
     else {
         console.warn("The connection switch is de-activated, no request was made. Reload the page to re-activate the OPLauncher connection.")
+        if (callbackErr) callbackErr(new Error("OPLauncher backend port is not available"));
     }
 
     return true;

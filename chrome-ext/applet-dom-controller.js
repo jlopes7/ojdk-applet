@@ -278,8 +278,8 @@ class AppletInstance {
                     return;
                 }
                 if (response?.error) {
-                    console.error("Applet error:", response.error);
-                    reject(response.error);
+                    console.error("Applet error:", response.message);
+                    reject(response);
                     return;
                 }
 
