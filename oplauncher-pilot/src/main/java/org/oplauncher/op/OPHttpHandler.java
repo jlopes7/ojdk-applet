@@ -52,7 +52,7 @@ public class OPHttpHandler<P extends OPPayload> extends OPHandler<P> {
                     if ( !((OPSecurePayload) payload).isSyncedResponse() ) {
                         getOpServerRef().triggerSuccessCallbacks((OPMessage<P>) message);
                     }
-                    // Synchronous processing ...
+                    // Synchronous processing ... TODO: only supports remote method calls!
                     else {
                         try {
                             AppletMethodProxy<OPSecurePayload> proxy = new AppletMethodProxy<>(message, (OPHandler<OPSecurePayload>) this);

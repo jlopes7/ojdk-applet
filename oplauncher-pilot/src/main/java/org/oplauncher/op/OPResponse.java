@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OPResponse {
 
-    protected OPResponse(String response, boolean success, int rc) {
+    public OPResponse(String response, boolean success, int rc) {
         _message = response;
         _success = success;
         _errorCode = rc;
@@ -21,21 +21,28 @@ public class OPResponse {
     public int getErrorCode() {
         return _errorCode;
     }
+    public Object getReturnData() {
+        return _returnData;
+    }
 
-    protected OPResponse setUnsuccess() {
+    public OPResponse setUnsuccess() {
         _success = false;
         return this;
     }
-    protected OPResponse setSuccess() {
+    public OPResponse setSuccess() {
         _success = true;
         return this;
     }
-    protected OPResponse setErrorCode(int rc) {
+    public OPResponse setErrorCode(int rc) {
         _errorCode = rc;
         return this;
     }
-    protected OPResponse setMessage(String msg) {
+    public OPResponse setMessage(String msg) {
         _message = msg;
+        return this;
+    }
+    public OPResponse setReturnData(Object data) {
+        _returnData = data;
         return this;
     }
 
@@ -46,4 +53,6 @@ public class OPResponse {
     private boolean _success;
     @JsonProperty("errorcode")
     private int _errorCode;
+    @JsonProperty("methodResp")
+    private Object _returnData;
 }

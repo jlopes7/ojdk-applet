@@ -47,6 +47,10 @@ public class OPPlainPayload implements OPPayload {
         return Optional.ofNullable(_magicToken).orElse(0L);
     }
 
+    public String getMethodName() {
+        return _methodName;
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("Payload: {")
@@ -61,6 +65,7 @@ public class OPPlainPayload implements OPPayload {
         if ( getWidth()  != null ) sb.append(",\"w\"=").append(getWidth());
         if ( getHeight() != null ) sb.append(",\"h\"=").append(getHeight());
         if ( getMagicToken() != null ) sb.append(",\"mt\"=").append(getMagicToken());
+        if ( getMethodName() != null ) sb.append(",\"method\"=").append(getMethodName());
         sb.append("\"}");
 
         return sb.toString();
@@ -91,4 +96,7 @@ public class OPPlainPayload implements OPPayload {
     @JsonProperty("params")
     @JsonDeserialize( using = OPPayloadDeserializer.class, contentAs = String.class )
     private List<String> _parameters;
+
+    @JsonProperty("m")
+    private String _methodName;
 }

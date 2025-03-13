@@ -46,13 +46,13 @@ public class OPLauncherController {
 
     static public void main(String[] args) {
         OPLauncherController controller = new OPLauncherController();
-        /*controller.processLoadAppletOp(Arrays.asList("load_applet",
+        controller.processLoadAppletOp(Arrays.asList("load_applet",
                 "https://javatester.org",
                 "",
-                "", "Java Tester Applet 1",
+                "", "applet_oGiA6GdfoOSwz6Ca",
                 "width=440;height=60;posx=1530;posy=420",
                 "JavaVersionDisplayApplet.class"));
-        controller.processLoadAppletOp(Arrays.asList("load_applet",
+        /*controller.processLoadAppletOp(Arrays.asList("load_applet",
                 "https://javatester.org",
                 "",
                 "", "Java Tester Applet 2",
@@ -88,12 +88,12 @@ public class OPLauncherController {
                 "Java Plugin Verification",
                 "width=350;height=80;posx=8.0000;posy=163.0000;scriptable=true;codebase_lookup=false;mayscript=true;plugindetect",
                 "A"));*/
-        controller.processLoadAppletOp(Arrays.asList("load_applet",
+        /*controller.processLoadAppletOp(Arrays.asList("load_applet",
                 "https://areo.info/mpf/",
                 ".",
                 "imagefinder.jar",
                 "Pathfinder ImageFinder Apple",
                 "width=630;height=550;posx=8.0000;posy=163.0000;case=lower;cd1=data/cdrom1;cd2=data/cdrom2;cd3=data/cdrom3",
-                "ImageFinder.class"));
+                "ImageFinder.class"))*/;
     }
 }

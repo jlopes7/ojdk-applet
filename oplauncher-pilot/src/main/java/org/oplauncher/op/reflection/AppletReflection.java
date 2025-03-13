@@ -22,7 +22,7 @@ public abstract class AppletReflection {
         Class<? extends Applet> klass = applet.getClass();
 
         // Retrieve all declared methods
-        Method[] methods = klass.getDeclaredMethods();
+        Method[] methods = klass.getMethods();
 
         if (methodName != null) {
             // Iterate over methods to find a match
