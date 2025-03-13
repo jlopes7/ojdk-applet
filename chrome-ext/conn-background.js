@@ -37,7 +37,7 @@ function sendToRemoteBackgroundPort(messageToRemote, operation) {
 
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(messageToRemote, (resp) => {
-            if (!resp || !resp.response) {
+            if (!resp || !resp.message) {
                 console.warn("Received an empty response from the backend", resp);
                 return;
             }

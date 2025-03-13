@@ -501,7 +501,8 @@ function getRandomNumber() {
  * @returns {{payload: string, msgsize: number}}
  */
 async function encryptPayloadWithDES3(jsonData, base64Key, magicmsk, callback, compact) {
-    const rmaskednum = getRandomNumber() | magicmsk;
+    const rmaskednum   = getRandomNumber() | magicmsk;
+    const syncresponse = jsonData.syncresp || false;
     console.info("Magic number: ", rmaskednum);
 
     if (compact) {
@@ -540,13 +541,15 @@ async function encryptPayloadWithDES3(jsonData, base64Key, magicmsk, callback, c
         if (compact) {
             callback({
                 p: encryptedBase64,
-                msz: jsonString.length
+                msz: jsonString.length,
+                syncresp: syncresponse
             });
         }
         else {
             callback({
                 payload: encryptedBase64,
-                msgsize: jsonString.length
+                msgsize: jsonString.length,
+                syncresp: syncresponse
             });
         }
     }

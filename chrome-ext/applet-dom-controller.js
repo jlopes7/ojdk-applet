@@ -44,12 +44,13 @@ window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
         console.info("About to process the invoke function(%s) from the request(%s): %s", method, requestId, appletName);
 
         function sendMessageBack2View(data) {
+            console.info("About to send the remote method response to the applet viewer/API:", data);
             // Send confirmation back to `applet.js`
             window.postMessage({
                 type: OPResources.EVT_INVOKE_APPLET_RES,
                 requestId: data.requestId,
                 appletName: data.appletName,
-                methodResp: data.methodResponse,
+                methodResp: data.methodResp,
                 success: true
             }, "*");
         }
@@ -74,9 +75,14 @@ window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
              */
             function executeMethodProxy() {
                 console.info("About to send the event data to the backend port", event.data);
-                sendToRemoteBackgroundPort(event.data, OPResources.OP_INVOKE_METHOD).then((response) => {
+                sendToRemoteBackgroundPort({
+                    applet_name:    event.data.appletName,
+                    m:              event.data.method,
+                    params:         event.data.arguments,
+                    syncresp:       true
+                }, OPResources.OP_INVOKE_METHOD).then((response) => {
                     if (continueProcessing) {
-                        methodResponse = response.methodResponse;
+                        methodResponse = response.methodResp;
                         console.info("Got a response from the backend port for the method invocation", methodResponse);
                     } else {
                         console.warn("A response was received by the backend port, but it too long to process it so it will be ignored. This could happen due to a latency in the network. The maximun waiting time for method processing is 5s.", response);
@@ -92,7 +98,8 @@ window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
                     console.info("Applet class instance found", applet);
                     foundApplet = true;
 
-                    if (method === "isActive") methodResponse = applet.isActive();
+                    executeMethodProxy();
+                    /*if (method === "isActive") methodResponse = applet.isActive();
                     else if (method === "getVersion") methodResponse = applet.getVersion();
                     else if (method === "getVendor") methodResponse = applet.getVendor();
                     else if (method === "getAppVersion") methodResponse = applet.getAppVersion();
@@ -100,7 +107,7 @@ window.addEventListener(OPResources.EVT_MESSAGE, (event) => {
                     else if (method === "statusbar") methodResponse = applet.statusbar(arguments[0]);
                     else {
                         executeMethodProxy();
-                    }
+                    }*/
                     break;
                 }
             }
@@ -161,7 +168,7 @@ class AppletInstance {
      * @returns true if it's active, false otherwise
      */
     async isActive() {
-        const result = await this.invoke("isActive");
+        const response = await this.invoke("isActive");
 
         if (!response || !response.success) {
             console.error("isActive() failed the call for the Applet (%s): %s", this.name, response);
@@ -169,7 +176,7 @@ class AppletInstance {
         }
 
         // Convert "true"/"false" string into a real boolean
-        return response.result.toLowerCase() === "true";
+        return response.result;
     }
 
     /**
@@ -177,7 +184,7 @@ class AppletInstance {
      * @returns the Java version
      */
     async getVersion() {
-        const result = await this.invoke("getVersion");
+        const response = await this.invoke("getVersion");
 
         if (!response || !response.success) {
             console.error("getVersion() failed the call for the Applet (%s): %s", this.name, response);
@@ -193,7 +200,7 @@ class AppletInstance {
      * @returns the Java vendor for the JVM
      */
     async getVendor() {
-        const result = await this.invoke("getVendor");
+        const response = await this.invoke("getVendor");
 
         if (!response || !response.success) {
             console.error("getVendor() failed the call for the Applet (%s): %s", this.name, response);
@@ -209,7 +216,7 @@ class AppletInstance {
      * @returns the Applet internal version
      */
     async getAppVersion() {
-        const result = await this.invoke("getAppVersion");
+        const response = await this.invoke("getAppVersion");
 
         if (!response || !response.success) {
             console.error("getAppVersion() failed the call for the Applet (%s): %s", this.name, response);
@@ -234,7 +241,7 @@ class AppletInstance {
      * @returns {Promise<string>}
      */
     async getProp(property) {
-        const result = await this.invoke("getProp", property);
+        const response = await this.invoke("getProp", property);
 
         if (!response || !response.success) {
             console.error("getProp() failed the call for the Applet (%s): %s", this.name, response);
@@ -268,9 +275,10 @@ class AppletInstance {
         return new Promise((resolve, reject) => {
             chrome.runtime.sendMessage({
                 op: OPResources.OP_INVOKE_METHOD,
-                appletName: this.name,
-                method,
-                args
+                applet_name: this.name,
+                m: method,
+                params: args,
+                syncresp: true
             }, (response) => {
                 if (chrome.runtime.lastError) {
                     console.error("Error invoking applet method:", chrome.runtime.lastError);
@@ -283,7 +291,9 @@ class AppletInstance {
                     return;
                 }
 
-                resolve(response.result);
+                console.info("OPLauncher Backend port response:", response);
+
+                resolve(response);
             });
         });
     }

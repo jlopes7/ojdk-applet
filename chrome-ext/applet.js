@@ -173,6 +173,7 @@ class AppletInstanceStub {
                 type: OPResources.EVT_INVOKE_APPLET_REQ,
                 requestId: requestId,
                 appletName: this.name,
+                applet_name: this.name,
                 options: this.options,
                 method: method,
                 arguments: safeArgs
